@@ -24,7 +24,6 @@ export type WalletDescriptor = {
   label: string;
   subtitle: string;
   icon: string;
-  installed?: boolean;
 };
 
 const BRAND_NAME = process.env.NEXT_PUBLIC_BRAND_NAME || "Megahop";
@@ -126,7 +125,6 @@ export const buildWalletDescriptors = (): WalletDescriptor[] =>
     label: wallet.label,
     subtitle: wallet.subtitle,
     icon: wallet.icon,
-    installed: undefined,
   }));
 
 export const loadRainbowKitWalletIcons = async () => {
