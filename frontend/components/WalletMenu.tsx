@@ -16,11 +16,8 @@ const MINT_EVENT_QUERY_BLOCK_CHUNK = 40_000;
 const NFT_PREVIEW_LIMIT = 8;
 const WALLET_ICON_BY_ID: Record<string, string> = {
   "io.metamask": "/wallets/metamask.svg",
-  "com.coinbase.wallet": "/wallets/coinbase.svg",
   "app.phantom": "/wallets/phantom.svg",
   "io.rabby": "/wallets/rabby.png",
-  "com.okx.wallet": "/wallets/okx.svg",
-  "com.trustwallet": "/wallets/trust.svg",
   "me.rainbow": "/wallets/more.svg",
   "io.zerion.wallet": "/wallets/more.svg",
   walletConnect: "/wallets/walletconnect.svg",
@@ -29,13 +26,7 @@ const WALLET_ICON_BY_ID: Record<string, string> = {
 };
 
 type WalletOption = {
-  id:
-    | "io.metamask"
-    | "app.phantom"
-    | "io.rabby"
-    | "com.coinbase.wallet"
-    | "com.okx.wallet"
-    | "com.trustwallet";
+  id: "io.metamask" | "app.phantom" | "io.rabby";
   label: string;
   subtitle: string;
   fallbackIcon: string;
@@ -104,24 +95,6 @@ const CONNECT_WALLET_OPTIONS: WalletOption[] = [
     label: "Rabby",
     subtitle: "Browser Wallet",
     fallbackIcon: WALLET_ICON_BY_ID["io.rabby"],
-  },
-  {
-    id: "com.coinbase.wallet",
-    label: "Coinbase Wallet",
-    subtitle: "Browser & Mobile",
-    fallbackIcon: WALLET_ICON_BY_ID["com.coinbase.wallet"],
-  },
-  {
-    id: "com.okx.wallet",
-    label: "OKX Wallet",
-    subtitle: "Browser Wallet",
-    fallbackIcon: WALLET_ICON_BY_ID["com.okx.wallet"],
-  },
-  {
-    id: "com.trustwallet",
-    label: "Trust Wallet",
-    subtitle: "Browser & Mobile",
-    fallbackIcon: WALLET_ICON_BY_ID["com.trustwallet"],
   },
 ];
 
@@ -326,9 +299,13 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
       onStatus?.({ type: "success", message: "Wallet connected." });
     } catch (error: any) {
       if (error?.name === "AbortError") return;
-      const reason = typeof error?.message === "string" && error.message.toLowerCase().includes("user rejected")
+      const message = typeof error?.message === "string" ? error.message : "";
+      const normalizedMessage = message.toLowerCase();
+      const reason = normalizedMessage.includes("user rejected")
         ? "Wallet connection canceled."
-        : "Failed to connect wallet.";
+        : normalizedMessage.includes("wallet extension not found")
+        ? `${option.label} extension not found in this browser.`
+        : message || "Failed to connect wallet.";
       onStatus?.({ type: "error", message: reason });
     } finally {
       setConnectingWalletId(null);
