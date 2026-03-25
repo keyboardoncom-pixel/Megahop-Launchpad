@@ -381,7 +381,7 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
             <div className="wallet-popover-grid">
               <section className="wallet-pop-column wallet-connect-wallets">
                 <header className="wallet-pop-heading wallet-connect-heading">
-                  <h3>Connect Wallet</h3>
+                  <h3>Connect Your Wallet</h3>
                 </header>
                 <div className="wallet-connect-list">
                   {CONNECT_WALLET_OPTIONS.map((option) => {
@@ -417,12 +417,14 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
                       <source src={EARTH_VIDEO_ASSET} type="video/webm" />
                     </video>
                   </div>
-                  <p className="wallet-connect-panel-title">Your gateway to the decentralized world</p>
+                  <p className="wallet-connect-panel-title">Official Megahop wallet connection</p>
                   <p className="wallet-connect-panel-copy">
-                    {isConnecting ? "Approve the request in your wallet." : "Connect a wallet to get started."}
+                    {isConnecting
+                      ? "Approve the request in your wallet to continue."
+                      : "Choose a supported wallet to connect and mint on Megahop."}
                   </p>
                   <p className="wallet-connect-panel-hint">
-                    MetaMask, Phantom, Rabby, Coinbase Wallet, OKX Wallet, and Trust Wallet supported.
+                    We only show supported wallet apps for this mint.
                   </p>
                 </div>
               </section>
