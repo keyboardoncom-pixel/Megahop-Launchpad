@@ -113,9 +113,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [provider, setProvider] = useState<any | null>(null);
   const [manualStatus, setManualStatus] = useState<"connecting" | null>(null);
   const [walletOptions, setWalletOptions] = useState<WalletDescriptor[]>(WALLET_OPTIONS);
+  const [selectedWalletId, setSelectedWalletId] = useState<BrowserWalletId | null>(null);
   const activeProviderRef = useRef<any | null>(null);
 
-  const walletId = useMemo(() => getWalletIdFromConnector(connector as ConnectorLike | null), [connector]);
+  const connectorWalletId = useMemo(
+    () => getWalletIdFromConnector(connector as ConnectorLike | null),
+    [connector],
+  );
+  const walletId = selectedWalletId || connectorWalletId;
   const connectionStatus = useMemo<"disconnected" | "connecting" | "connected">(() => {
     if (manualStatus === "connecting" || status === "connecting" || status === "reconnecting") {
       return "connecting";
@@ -143,6 +148,28 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedWalletId = window.localStorage.getItem(STORAGE_KEY);
+    if (!storedWalletId) return;
+    if (!WALLET_OPTIONS.some((wallet) => wallet.id === storedWalletId)) return;
+    setSelectedWalletId(storedWalletId as BrowserWalletId);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (connectionStatus === "disconnected") {
+      setSelectedWalletId(null);
+      window.localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    if (!selectedWalletId && connectorWalletId) {
+      setSelectedWalletId(connectorWalletId);
+      window.localStorage.setItem(STORAGE_KEY, connectorWalletId);
+    }
+  }, [connectionStatus, connectorWalletId, selectedWalletId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,6 +203,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     activeProviderRef.current = null;
     setProvider(null);
     setManualStatus(null);
+    setSelectedWalletId(null);
     disconnect();
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -223,11 +251,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     setManualStatus("connecting");
     try {
+      setSelectedWalletId(nextWalletId);
       await connectAsync({ connector: nextConnector as any });
       if (typeof window !== "undefined") {
         window.localStorage.setItem(STORAGE_KEY, nextWalletId);
       }
     } catch (error) {
+      setSelectedWalletId(null);
       throw error;
     } finally {
       setManualStatus(null);
