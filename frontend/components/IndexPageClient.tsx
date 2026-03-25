@@ -236,7 +236,7 @@ export default function Home() {
   const account = useWalletAccount();
   const chain = useWalletChain();
   const connectionStatus = useWalletConnectionStatus();
-  const { provider } = useWalletState();
+  const { provider, switchToTargetChain } = useWalletState();
   const address = account?.address;
   const isConnected = connectionStatus === "connected" && !!address;
 
@@ -263,6 +263,7 @@ export default function Home() {
   const isSupportedChain = !chain || SUPPORTED_CHAIN_IDS.includes(chain.id);
   const isTargetChain = TARGET_CHAIN_ID ? !!chain && chain.id === TARGET_CHAIN_ID : true;
   const isCorrectChain = isSupportedChain && isTargetChain;
+  const isWrongNetwork = isConnected && !isCorrectChain;
   const launchpadUiStorageKey = useMemo(
     () => getLaunchpadUiStorageKey(CONTRACT_ADDRESS, TARGET_CHAIN_ID || chain?.id),
     [chain?.id]
@@ -642,6 +643,25 @@ export default function Home() {
     }
   };
 
+  const handleSwitchNetwork = async () => {
+    try {
+      setStatus({ type: "pending", message: `Switching wallet to ${NETWORK_NAME}...` });
+      await switchToTargetChain();
+      setStatus({ type: "success", message: `Wallet switched to ${NETWORK_NAME}.` });
+      await refreshAll();
+    } catch (error: any) {
+      const message = String(error?.message || error?.reason || "");
+      const lower = message.toLowerCase();
+      setStatus({
+        type: "error",
+        message:
+          error?.code === 4001 || lower.includes("user rejected")
+            ? `Switch to ${NETWORK_NAME} in your wallet to continue.`
+            : `Unable to switch automatically. Please switch to ${NETWORK_NAME} in your wallet.`,
+      });
+    }
+  };
+
   const maxNum = Number(maxSupply) || 0;
   const totalNum = Number(totalSupply) || 0;
   const progressPercent = maxNum > 0 ? (totalNum / maxNum) * 100 : 0;
@@ -784,6 +804,11 @@ export default function Home() {
     }, 9000);
     return () => window.clearTimeout(timeout);
   }, [mintSuccessToast]);
+
+  useEffect(() => {
+    if (!isWrongNetwork || status.type === "pending") return;
+    setStatus({ type: "error", message: `Switch to ${NETWORK_NAME} in your wallet to mint.` });
+  }, [isWrongNetwork, status.type]);
 
   if (!mounted) {
     return <div className="bg-hero min-h-screen text-white" />;
@@ -1080,9 +1105,21 @@ export default function Home() {
               )}
             </div>
 
-            <button className="mint-ui-submit" disabled={!canMint} onClick={handleMint}>
+            {isWrongNetwork ? (
+              <div className="admin-alert admin-alert-warn" style={{ marginBottom: 12 }}>
+                Wrong network detected. Switch to {NETWORK_NAME} to mint.
+              </div>
+            ) : null}
+
+            <button
+              className="mint-ui-submit"
+              disabled={isMinting || (!canMint && !isWrongNetwork)}
+              onClick={isWrongNetwork ? () => void handleSwitchNetwork() : handleMint}
+            >
               {isMinting
                 ? "PROCESSING..."
+                : isWrongNetwork
+                ? `SWITCH TO ${NETWORK_NAME.toUpperCase()}`
                 : canMint
                 ? "MINT NOW"
                 : isConnected && isCorrectChain && allowlistRequired && allowlistEligible === false
