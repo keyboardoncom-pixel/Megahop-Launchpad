@@ -80,6 +80,7 @@ const json = (body, init = {}) =>
   );
 
 const HTML_CACHE_CONTROL = "public, max-age=0, s-maxage=300, stale-while-revalidate=86400";
+const NOT_FOUND_CACHE_CONTROL = "public, max-age=60, s-maxage=60, stale-while-revalidate=300";
 
 const stableStringify = (value) => {
   if (Array.isArray(value)) {
@@ -345,20 +346,21 @@ const handleAllowlistProof = async (request, env) => {
     try {
       const raw = await env.LAUNCHPAD_UI_KV.get(key);
       if (typeof raw === "string" && raw.trim()) {
-        return json(JSON.parse(raw));
+        return json(JSON.parse(raw), {
+          headers: {
+            "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=86400",
+          },
+        });
       }
     } catch {
       // fall through
     }
   }
 
-  const assetUrl = new URL(`/allowlists/phase-${phaseId}.json`, url.origin);
-  const assetResponse = await env.ASSETS.fetch(new Request(assetUrl.toString(), request));
-  if (assetResponse.ok) {
-    return withDefaultHeaders(assetResponse, { "Cache-Control": "no-store, max-age=0" });
-  }
-
-  return json({ ok: false, error: "Allowlist proof not found" }, { status: 404 });
+  return json(
+    { ok: false, error: "Allowlist proof not found" },
+    { status: 404, headers: { "Cache-Control": NOT_FOUND_CACHE_CONTROL } },
+  );
 };
 
 const handleAllowlistUpsert = async (request, env) => {
@@ -525,6 +527,12 @@ const fetchStaticAsset = async (request, env) => {
     }
   }
 
+  if (hasExtension) {
+    return withDefaultHeaders(new Response("Not found", { status: 404 }), {
+      "Cache-Control": NOT_FOUND_CACHE_CONTROL,
+    });
+  }
+
   const fallbackUrl = new URL(request.url);
   fallbackUrl.pathname = "/404.html";
   const fallbackResponse = await env.ASSETS.fetch(new Request(fallbackUrl.toString(), request));
@@ -532,7 +540,7 @@ const fetchStaticAsset = async (request, env) => {
     return withDefaultHeaders(fallbackResponse, { "Cache-Control": "no-store, max-age=0" });
   }
   return withDefaultHeaders(new Response("Not found", { status: 404 }), {
-    "Cache-Control": "no-store, max-age=0",
+    "Cache-Control": NOT_FOUND_CACHE_CONTROL,
   });
 };
 
