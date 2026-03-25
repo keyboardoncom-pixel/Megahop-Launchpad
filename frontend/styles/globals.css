@@ -2302,12 +2302,52 @@ a {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .wallet-profile-popover {
+    right: -0.22rem;
+    width: min(96vw, 420px);
+    max-height: min(78vh, 720px);
+    overflow-y: auto;
+  }
+
+  .wallet-profile-popover .wallet-popover-grid {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .wallet-profile-popover .wallet-pop-column {
+    padding: 0.66rem;
+  }
+
+  .wallet-profile-popover .wallet-pop-column + .wallet-pop-column {
+    border-left: none;
+    border-top: 1px solid rgba(25, 25, 26, 0.2);
+  }
+
+  .wallet-profile-popover .wallet-asset-list {
+    gap: 0.5rem;
+  }
+
   .wallet-profile-row {
     font-size: 0.84rem;
   }
 
   .wallet-pop-footer {
     flex-wrap: wrap;
+  }
+
+  .wallet-profile-popover .wallet-pop-footer {
+    padding: 0.56rem 0.66rem;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wallet-profile-popover .wallet-pop-brand-logo {
+    width: clamp(96px, 32vw, 132px);
+  }
+
+  .wallet-profile-popover .wallet-disconnect-btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .mint-ui-footer-wordmark-logo {
