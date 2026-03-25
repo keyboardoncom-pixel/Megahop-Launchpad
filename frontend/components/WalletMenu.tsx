@@ -406,16 +406,6 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
                 >
                   <span className="wallet-powered-by-text">Powered by RainbowKit</span>
                 </a>
-                <a
-                  href="https://mega.etherscan.io/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="wallet-powered-by"
-                  aria-label="Open MegaETH Explorer"
-                >
-                  <span className="wallet-powered-by-text">Explorer</span>
-                  <img src="/megaeth-assets/scan.png" alt="MegaETH Explorer" className="wallet-powered-by-logo" />
-                </a>
                 <button type="button" className="wallet-disconnect-btn" onClick={() => setOpen(false)}>
                   Close
                 </button>
