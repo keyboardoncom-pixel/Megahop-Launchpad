@@ -281,9 +281,14 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
     try {
       setConnectingWalletId(option.id);
       onStatus?.({ type: "pending", message: `Connecting ${option.label}...` });
-      await connectWallet(option.id);
+      const result = await connectWallet(option.id);
       setOpen(false);
-      onStatus?.({ type: "success", message: "Wallet connected." });
+      onStatus?.({
+        type: result.requiresManualSwitch ? "error" : "success",
+        message: result.requiresManualSwitch
+          ? `Wallet connected. Switch to ${process.env.NEXT_PUBLIC_NETWORK_NAME || "MegaETH"} first.`
+          : "Wallet connected.",
+      });
     } catch (error: any) {
       if (error?.name === "AbortError") return;
       const message = typeof error?.message === "string" ? error.message : "";

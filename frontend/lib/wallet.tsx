@@ -35,7 +35,7 @@ type WalletContextValue = {
   wallet: WalletDescriptor | null;
   provider: any | null;
   walletOptions: WalletDescriptor[];
-  connectWallet: (walletId: BrowserWalletId) => Promise<void>;
+  connectWallet: (walletId: BrowserWalletId) => Promise<{ requiresManualSwitch: boolean }>;
   disconnectWallet: () => void;
   switchToTargetChain: () => Promise<void>;
 };
@@ -58,6 +58,11 @@ const STORAGE_KEY = "megahop-launchpad.selected-wallet";
 const WalletContext = createContext<WalletContextValue | null>(null);
 
 const normalizeHexChainId = (chainId: number) => `0x${chainId.toString(16)}`;
+const isUserRejectedRequest = (error: any) =>
+  error?.code === 4001 ||
+  String(error?.message || error?.reason || error?.data?.message || "")
+    .toLowerCase()
+    .includes("user rejected");
 
 const getWalletById = (walletId: BrowserWalletId | null) =>
   WALLET_OPTIONS.find((wallet) => wallet.id === walletId) || null;
@@ -210,8 +215,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const switchToTargetChain = async () => {
-    const activeProvider = activeProviderRef.current || provider;
+  const switchProviderToTargetChain = async (activeProvider: any) => {
     if (!activeProvider || !TARGET_CHAIN_ID) return;
     const targetChainHex = normalizeHexChainId(TARGET_CHAIN_ID);
 
@@ -240,7 +244,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           },
         ],
       });
+      await activeProvider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: targetChainHex }],
+      });
     }
+  };
+
+  const switchToTargetChain = async () => {
+    const activeProvider = activeProviderRef.current || provider;
+    await switchProviderToTargetChain(activeProvider);
   };
 
   const connectWallet = async (nextWalletId: BrowserWalletId) => {
@@ -253,9 +266,31 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       setSelectedWalletId(nextWalletId);
       await connectAsync({ connector: nextConnector as any });
+      const nextProvider = (await nextConnector.getProvider?.()) ?? null;
+      activeProviderRef.current = nextProvider;
+      setProvider(nextProvider);
       if (typeof window !== "undefined") {
         window.localStorage.setItem(STORAGE_KEY, nextWalletId);
       }
+      if (nextProvider && TARGET_CHAIN_ID) {
+        const currentChainHex = await nextProvider
+          .request?.({ method: "eth_chainId" })
+          .catch(() => null);
+        const currentChainId =
+          typeof currentChainHex === "string" ? Number.parseInt(currentChainHex, 16) : Number(currentChainHex || 0);
+
+        if (currentChainId !== TARGET_CHAIN_ID) {
+          try {
+            await switchProviderToTargetChain(nextProvider);
+          } catch (switchError) {
+            if (isUserRejectedRequest(switchError)) {
+              return { requiresManualSwitch: true };
+            }
+            throw new Error(`Wallet connected, but switch to ${TARGET_CHAIN_NAME} network before minting.`);
+          }
+        }
+      }
+      return { requiresManualSwitch: false };
     } catch (error) {
       setSelectedWalletId(null);
       throw error;
