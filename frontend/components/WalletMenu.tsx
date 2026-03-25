@@ -18,7 +18,7 @@ const WALLET_ICON_BY_ID: Record<string, string> = {
   "io.metamask": "/wallets/metamask.svg",
   "com.coinbase.wallet": "/wallets/coinbase.svg",
   "app.phantom": "/wallets/phantom.svg",
-  "io.rabby": "/wallets/rabby.svg",
+  "io.rabby": "/wallets/rabby.png",
   "com.okx.wallet": "/wallets/okx.svg",
   "com.trustwallet": "/wallets/trust.svg",
   "me.rainbow": "/wallets/more.svg",

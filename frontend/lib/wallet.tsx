@@ -74,7 +74,7 @@ const WALLET_OPTIONS: WalletDescriptor[] = [
     id: "io.rabby",
     label: "Rabby",
     subtitle: "Browser Wallet",
-    icon: "/wallets/rabby.svg",
+    icon: "/wallets/rabby.png",
   },
   {
     id: "com.coinbase.wallet",

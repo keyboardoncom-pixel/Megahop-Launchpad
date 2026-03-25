@@ -1,11 +1,14 @@
-<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="39" height="43" viewBox="0 0 39 43" fill="none">
+  <path d="M0.882812 6.36743L19.6037 0.300415V42.3004C6.23144 36.6999 0.882812 25.9667 0.882812 19.9009V6.36743Z" fill="#0500FF"/>
+  <path d="M38.3263 6.36743L19.6055 0.300415V42.3004C32.9777 36.6999 38.3263 25.9667 38.3263 19.9009V6.36743Z" fill="url(#paint0_linear_3543_117667)"/>
   <defs>
-    <linearGradient id="trustBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4AA3FF"/>
-      <stop offset="1" stop-color="#245BFF"/>
+    <linearGradient id="paint0_linear_3543_117667" x1="33.3535" y1="-2.6407" x2="19.2876" y2="41.7504" gradientUnits="userSpaceOnUse">
+      <stop offset="0.02" stop-color="#0000FF"/>
+      <stop offset="0.08" stop-color="#0094FF"/>
+      <stop offset="0.16" stop-color="#48FF91"/>
+      <stop offset="0.42" stop-color="#0094FF"/>
+      <stop offset="0.68" stop-color="#0038FF"/>
+      <stop offset="0.9" stop-color="#0500FF"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="16" fill="url(#trustBg)"/>
-  <path d="M32 14L46 19V31c0 9.38-5.75 17.84-14 21-8.25-3.16-14-11.62-14-21V19l14-5Z" fill="#fff"/>
-  <path d="M32 22 39 24.5V31c0 4.9-2.83 9.32-7 11.28C27.83 40.32 25 35.9 25 31v-6.5L32 22Z" fill="#245BFF"/>
 </svg>
