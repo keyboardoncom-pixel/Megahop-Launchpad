@@ -10,15 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { ethers } from "ethers";
-
-declare global {
-  interface Window {
-    ethereum?: any;
-    phantom?: {
-      ethereum?: any;
-    };
-  }
-}
+import { useAccount, useConnect, useDisconnect } from "wagmi";
 
 export type BrowserWalletId = "io.metamask" | "app.phantom" | "io.rabby";
 
@@ -51,11 +43,18 @@ type WalletContextValue = {
   switchToTargetChain: () => Promise<void>;
 };
 
+type ConnectorLike = {
+  id?: string;
+  name?: string;
+  rdns?: string;
+  getProvider?: () => Promise<any>;
+};
+
 const WALLET_OPTIONS: WalletDescriptor[] = [
   {
     id: "io.metamask",
     label: "MetaMask",
-    subtitle: "Browser & Mobile",
+    subtitle: "Browser Wallet",
     icon: "/wallets/metamask.svg",
   },
   {
@@ -82,51 +81,8 @@ const WalletContext = createContext<WalletContextValue | null>(null);
 
 const normalizeHexChainId = (chainId: number) => `0x${chainId.toString(16)}`;
 
-const getWalletProvider = (walletId: BrowserWalletId): any | null => {
-  if (typeof window === "undefined") return null;
-
-  const providers: any[] = Array.isArray(window.ethereum?.providers)
-    ? window.ethereum.providers
-    : window.ethereum
-    ? [window.ethereum]
-    : [];
-
-  if (walletId === "app.phantom") {
-    if (window.phantom?.ethereum) {
-      return window.phantom.ethereum;
-    }
-    return providers.find((provider) => provider?.isPhantom) || null;
-  }
-
-  if (walletId === "io.rabby") {
-    return providers.find((provider) => provider?.isRabby) || null;
-  }
-
-  if (walletId === "io.metamask") {
-    return (
-      providers.find(
-        (provider) => provider?.isMetaMask && !provider?.isRabby && !provider?.isPhantom
-      ) ||
-      providers.find((provider) => provider?.isMetaMask) ||
-      null
-    );
-  }
-
-  return null;
-};
-
 const getWalletById = (walletId: BrowserWalletId | null) =>
   WALLET_OPTIONS.find((wallet) => wallet.id === walletId) || null;
-
-const getChainIdNumber = (value: unknown) => {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim()) {
-    return Number(value);
-  }
-  return 0;
-};
 
 const buildAccount = (address: string, provider: any): WalletAccount => ({
   address,
@@ -137,95 +93,93 @@ const buildAccount = (address: string, provider: any): WalletAccount => ({
   },
 });
 
-const syncProviderState = async (provider: any) => {
-  const [accounts, chainIdRaw] = await Promise.all([
-    provider.request({ method: "eth_accounts" }).catch(() => []),
-    provider.request({ method: "eth_chainId" }).catch(() => "0x0"),
-  ]);
+const getWalletIdFromConnector = (connector: ConnectorLike | null | undefined): BrowserWalletId | null => {
+  if (!connector) return null;
 
-  const address =
-    Array.isArray(accounts) && accounts.length > 0 && typeof accounts[0] === "string"
-      ? accounts[0]
-      : "";
+  const rdns = String(connector.rdns || "").toLowerCase();
+  const id = String(connector.id || "").toLowerCase();
+  const name = String(connector.name || "").toLowerCase();
 
-  const chainId =
-    typeof chainIdRaw === "string" ? parseInt(chainIdRaw, 16) : getChainIdNumber(chainIdRaw);
-
-  return {
-    address,
-    chainId: Number.isFinite(chainId) ? chainId : 0,
-  };
+  if (rdns === "io.metamask" || id === "metamask" || id === "metaMask" || name.includes("metamask")) {
+    return "io.metamask";
+  }
+  if (rdns === "app.phantom" || id === "phantom" || name.includes("phantom")) {
+    return "app.phantom";
+  }
+  if (rdns === "io.rabby" || id === "rabby" || name.includes("rabby")) {
+    return "io.rabby";
+  }
+  return null;
 };
 
+const getConnectorForWallet = (connectors: readonly ConnectorLike[], walletId: BrowserWalletId) =>
+  connectors.find((connector) => getWalletIdFromConnector(connector) === walletId) || null;
+
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [walletId, setWalletId] = useState<BrowserWalletId | null>(null);
+  const { address, chainId, connector, status } = useAccount();
+  const { connectAsync, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+
   const [provider, setProvider] = useState<any | null>(null);
-  const [address, setAddress] = useState("");
-  const [chainId, setChainId] = useState(0);
-  const [connectionStatus, setConnectionStatus] = useState<
-    "disconnected" | "connecting" | "connected"
-  >("disconnected");
+  const [manualStatus, setManualStatus] = useState<"connecting" | null>(null);
   const activeProviderRef = useRef<any | null>(null);
+
+  const walletId = useMemo(() => getWalletIdFromConnector(connector as ConnectorLike | null), [connector]);
+  const connectionStatus = useMemo<"disconnected" | "connecting" | "connected">(() => {
+    if (manualStatus === "connecting" || status === "connecting" || status === "reconnecting") {
+      return "connecting";
+    }
+    if (status === "connected" && address) {
+      return "connected";
+    }
+    return "disconnected";
+  }, [address, manualStatus, status]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!connector || !address || status !== "connected") {
+      activeProviderRef.current = null;
+      setProvider(null);
+      return;
+    }
+
+    const loadProvider = async () => {
+      try {
+        const nextProvider = await (connector as ConnectorLike).getProvider?.();
+        if (cancelled) return;
+        activeProviderRef.current = nextProvider ?? null;
+        setProvider(nextProvider ?? null);
+      } catch {
+        if (cancelled) return;
+        activeProviderRef.current = null;
+        setProvider(null);
+      }
+    };
+
+    void loadProvider();
+    return () => {
+      cancelled = true;
+    };
+  }, [address, connector, status]);
 
   const disconnectWallet = () => {
     activeProviderRef.current = null;
-    setWalletId(null);
     setProvider(null);
-    setAddress("");
-    setChainId(0);
-    setConnectionStatus("disconnected");
+    setManualStatus(null);
+    disconnect();
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
     }
   };
 
-  const attachProvider = async (nextWalletId: BrowserWalletId, nextProvider: any) => {
-    activeProviderRef.current = nextProvider;
-    setWalletId(nextWalletId);
-    setProvider(nextProvider);
-
-    const update = async () => {
-      const state = await syncProviderState(nextProvider);
-      setAddress(state.address);
-      setChainId(state.chainId);
-      setConnectionStatus(state.address ? "connected" : "disconnected");
-    };
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      const nextAddress = Array.isArray(accounts) && accounts.length > 0 ? String(accounts[0]) : "";
-      setAddress(nextAddress);
-      setConnectionStatus(nextAddress ? "connected" : "disconnected");
-    };
-
-    const handleChainChanged = (nextChainId: string | number) => {
-      const parsed =
-        typeof nextChainId === "string"
-          ? parseInt(nextChainId, 16)
-          : getChainIdNumber(nextChainId);
-      setChainId(Number.isFinite(parsed) ? parsed : 0);
-    };
-
-    const handleDisconnect = () => {
-      disconnectWallet();
-    };
-
-    nextProvider.removeListener?.("accountsChanged", handleAccountsChanged);
-    nextProvider.removeListener?.("chainChanged", handleChainChanged);
-    nextProvider.removeListener?.("disconnect", handleDisconnect);
-
-    nextProvider.on?.("accountsChanged", handleAccountsChanged);
-    nextProvider.on?.("chainChanged", handleChainChanged);
-    nextProvider.on?.("disconnect", handleDisconnect);
-
-    await update();
-  };
-
   const switchToTargetChain = async () => {
-    if (!provider || !TARGET_CHAIN_ID) return;
+    const activeProvider = activeProviderRef.current || provider;
+    if (!activeProvider || !TARGET_CHAIN_ID) return;
     const targetChainHex = normalizeHexChainId(TARGET_CHAIN_ID);
 
     try {
-      await provider.request({
+      await activeProvider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: targetChainHex }],
       });
@@ -233,7 +187,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (error?.code !== 4902 || !TARGET_RPC_URL) {
         throw error;
       }
-      await provider.request({
+      await activeProvider.request({
         method: "wallet_addEthereumChain",
         params: [
           {
@@ -253,36 +207,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const connectWallet = async (nextWalletId: BrowserWalletId) => {
-    const nextProvider = getWalletProvider(nextWalletId);
-    if (!nextProvider) {
+    const nextConnector = getConnectorForWallet(connectors as readonly ConnectorLike[], nextWalletId);
+    if (!nextConnector) {
       throw new Error("Wallet extension not found in this browser.");
     }
 
-    setConnectionStatus("connecting");
+    setManualStatus("connecting");
     try {
-      await nextProvider.request({ method: "eth_requestAccounts" });
-      await attachProvider(nextWalletId, nextProvider);
+      await connectAsync({ connector: nextConnector as any });
       if (typeof window !== "undefined") {
         window.localStorage.setItem(STORAGE_KEY, nextWalletId);
       }
     } catch (error) {
-      setConnectionStatus("disconnected");
       throw error;
+    } finally {
+      setManualStatus(null);
     }
   };
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const storedWalletId = window.localStorage.getItem(STORAGE_KEY) as BrowserWalletId | null;
-    if (!storedWalletId) return;
-
-    const storedProvider = getWalletProvider(storedWalletId);
-    if (!storedProvider) return;
-
-    void attachProvider(storedWalletId, storedProvider).catch(() => {
-      disconnectWallet();
-    });
-  }, []);
 
   const value = useMemo<WalletContextValue>(() => {
     const account = address && provider ? buildAccount(address, provider) : null;
