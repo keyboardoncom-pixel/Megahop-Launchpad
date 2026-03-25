@@ -43,20 +43,6 @@ const DEFAULT_PREVIEW_ASSET = "/megaeth-assets/image_7.png";
 const DEFAULT_BRAND_LOGO_ASSET = "/megaeth-assets/4afa304f-02e0-4249-b5cd-6ee5a6627079.svg";
 const ETH_ICON_ASSET = "/megaeth-assets/eth.svg";
 const FOOTER_EARTH_ASSET = "/megaeth-assets/earth.webm";
-const ETH_USD_RATE_SOURCES = [
-  {
-    url: "https://api.coinbase.com/v2/prices/ETH-USD/spot",
-    pick: (payload: any) => Number(payload?.data?.amount),
-  },
-  {
-    url: "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT",
-    pick: (payload: any) => Number(payload?.price),
-  },
-  {
-    url: "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
-    pick: (payload: any) => Number(payload?.ethereum?.usd),
-  },
-] as const;
 const USD_FORMATTER = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -249,18 +235,18 @@ function MintGlyph({ name, className = "" }: { name: MintGlyphName; className?: 
 }
 
 const fetchEthUsdRate = async (): Promise<number | null> => {
-  for (const source of ETH_USD_RATE_SOURCES) {
-    try {
-      const response = await fetch(source.url, { cache: "no-store" });
-      if (!response.ok) continue;
-      const payload = await response.json();
-      const value = source.pick(payload);
-      if (Number.isFinite(value) && value > 0) {
-        return value;
-      }
-    } catch {
-      // try next source
+  try {
+    const response = await fetch("/api/eth-price", { cache: "no-store" });
+    if (!response.ok) {
+      return null;
     }
+    const payload = (await response.json().catch(() => null)) as { ok?: boolean; usd?: number } | null;
+    const value = Number(payload?.usd);
+    if (payload?.ok && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  } catch {
+    // ignore and leave USD as unavailable
   }
   return null;
 };
