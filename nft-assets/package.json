@@ -1,0 +1,12 @@
+{
+  "name": "megahop-launchpad-nft-assets",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "generate": "node generate.mjs"
+  },
+  "dependencies": {
+    "sharp": "^0.34.4"
+  }
+}

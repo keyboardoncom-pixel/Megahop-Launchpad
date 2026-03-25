@@ -1,0 +1,25 @@
+{
+  "sourceDir": "/Users/yafiiviviana/Documents/Megahop-Launchpad/nft-assets/Megahop",
+  "outputDir": "/Users/yafiiviviana/Documents/Megahop-Launchpad/nft-assets/output",
+  "totalSupply": 3333,
+  "collectionName": "Megahop",
+  "description": "Official Megahop NFT collection on MegaETH",
+  "imageBaseUri": "ipfs://bafybeid4kqxkx7jefl6qcbsodk72bgaklm2nmubxxrdzoz2tiksdlpfujm/",
+  "externalUrl": "",
+  "sellerFeeBasisPoints": 500,
+  "feeRecipient": "0x9Caf6b595aBB898189b4Ab573DcD555dd93bb9d6",
+  "seed": 20260227,
+  "maxImageSizeKb": 200,
+  "resizeWidths": [512],
+  "pngQualitySteps": [90],
+  "layers": [
+    "Background",
+    "Body",
+    "Eyes",
+    "Mouth",
+    "Clothes",
+    "Head",
+    "Left Hand",
+    "Right Hand"
+  ]
+}

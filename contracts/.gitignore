@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+artifacts/
+cache/
+typechain-types/
+node_modules/

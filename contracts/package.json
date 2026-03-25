@@ -1,0 +1,29 @@
+{
+  "name": "megahop-launchpad-contracts",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:megaeth": "hardhat run scripts/deploy.ts --network megaeth",
+    "deploy:megaeth-testnet": "hardhat run scripts/deploy.ts --network megaethTestnet",
+    "verify:megaeth": "hardhat run scripts/verify.ts --network megaeth",
+    "verify:megaeth-testnet": "hardhat run scripts/verify.ts --network megaethTestnet",
+    "transfer-ownership:megaeth": "hardhat run scripts/transfer-ownership.ts --network megaeth",
+    "transfer-ownership:megaeth-testnet": "hardhat run scripts/transfer-ownership.ts --network megaethTestnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "@openzeppelin/contracts": "^4.9.6",
+    "dotenv": "^16.4.5",
+    "erc721a": "^4.2.3",
+    "hardhat": "^2.22.4",
+    "keccak256": "^1.0.6",
+    "merkletreejs": "^0.3.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  },
+  "overrides": {
+    "@nomicfoundation/hardhat-verify": "^2.0.0"
+  }
+}

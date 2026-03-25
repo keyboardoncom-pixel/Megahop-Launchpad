@@ -1,0 +1,37 @@
+.DS_Store
+
+# Env files
+.env
+.env.*
+!/.env.example
+!**/.env.example
+
+# Dependencies
+**/node_modules/
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+
+# Vercel
+.vercel/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vercel
+
+# Large generated archives
+nft-assets/output/
+nft-assets/output/*.zip
+nft-assets/*.zip
+
+# Ignore accidental nested workspace
+New project/

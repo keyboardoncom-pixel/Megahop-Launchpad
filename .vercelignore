@@ -1,0 +1,15 @@
+# Ignore non-frontend workspaces
+New project
+contracts
+nft-assets
+
+# Ignore local build/deps artifacts
+**/node_modules
+**/.next
+**/artifacts
+**/cache
+
+# Ignore big archives
+**/*.zip
+**/*.tar
+**/*.tar.gz
