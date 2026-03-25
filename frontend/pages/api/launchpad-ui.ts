@@ -161,9 +161,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<LaunchpadUiApiResponse>
 ) {
-  res.setHeader("Cache-Control", "no-store, max-age=0");
-
   if (req.method === "GET") {
+    res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=86400");
     try {
       const stored = await loadFromKv();
       if (stored) {
@@ -181,6 +180,8 @@ export default async function handler(
     res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
+
+  res.setHeader("Cache-Control", "no-store, max-age=0");
 
   if (!isAddress(CONTRACT_ADDRESS)) {
     return res.status(500).json({ ok: false, error: "Server contract address is not configured." });

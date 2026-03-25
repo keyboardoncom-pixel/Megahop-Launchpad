@@ -1,5 +1,5 @@
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useState, type ComponentType, type SVGProps } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from "react";
 import { ethers } from "ethers";
 import { ArrowPathIcon, CheckBadgeIcon, ClockIcon, MinusCircleIcon } from "@heroicons/react/24/outline";
 import {
@@ -43,6 +43,11 @@ const DEFAULT_PREVIEW_ASSET = "/megaeth-assets/image_7.png";
 const DEFAULT_BRAND_LOGO_ASSET = "/megaeth-assets/4afa304f-02e0-4249-b5cd-6ee5a6627079.svg";
 const ETH_ICON_ASSET = "/megaeth-assets/eth.svg";
 const FOOTER_EARTH_ASSET = "/megaeth-assets/earth.webm";
+const STATS_REFRESH_MS = Math.max(Number(process.env.NEXT_PUBLIC_STATS_REFRESH_MS || 300_000), 60_000);
+const LAUNCHPAD_UI_REFRESH_MS = Math.max(Number(process.env.NEXT_PUBLIC_LAUNCHPAD_UI_REFRESH_MS || 900_000), 120_000);
+const ETH_PRICE_REFRESH_MS = Math.max(Number(process.env.NEXT_PUBLIC_ETH_PRICE_REFRESH_MS || 1_800_000), 300_000);
+const VISIBILITY_REFRESH_DEBOUNCE_MS = 15_000;
+const ETH_PRICE_CACHE_KEY = "megahop-launchpad.eth-usd-cache";
 const USD_FORMATTER = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -235,6 +240,22 @@ function MintGlyph({ name, className = "" }: { name: MintGlyphName; className?: 
 }
 
 const fetchEthUsdRate = async (): Promise<number | null> => {
+  if (typeof window !== "undefined") {
+    try {
+      const cachedRaw = window.localStorage.getItem(ETH_PRICE_CACHE_KEY);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw) as { usd?: number; updatedAt?: number };
+        const usd = Number(cached?.usd);
+        const updatedAt = Number(cached?.updatedAt);
+        if (Number.isFinite(usd) && usd > 0 && Number.isFinite(updatedAt) && Date.now() - updatedAt < ETH_PRICE_REFRESH_MS) {
+          return usd;
+        }
+      }
+    } catch {
+      // ignore malformed local cache
+    }
+  }
+
   try {
     const response = await fetch("/api/eth-price", { cache: "no-store" });
     if (!response.ok) {
@@ -243,6 +264,19 @@ const fetchEthUsdRate = async (): Promise<number | null> => {
     const payload = (await response.json().catch(() => null)) as { ok?: boolean; usd?: number } | null;
     const value = Number(payload?.usd);
     if (payload?.ok && Number.isFinite(value) && value > 0) {
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(
+            ETH_PRICE_CACHE_KEY,
+            JSON.stringify({
+              usd: value,
+              updatedAt: Date.now(),
+            })
+          );
+        } catch {
+          // ignore storage failures
+        }
+      }
       return value;
     }
   } catch {
@@ -278,6 +312,10 @@ export default function Home() {
   const [uiSettings, setUiSettings] = useState(() =>
     buildDefaultLaunchpadUiSettings(LAUNCHPAD_UI_DEFAULTS)
   );
+  const lastRefreshAllAtRef = useRef(0);
+  const lastUiSyncAtRef = useRef(0);
+  const lastPriceSyncAtRef = useRef(0);
+  const lastVisibilityRefreshAtRef = useRef(0);
 
   const isSupportedChain = !chain || SUPPORTED_CHAIN_IDS.includes(chain.id);
   const isTargetChain = TARGET_CHAIN_ID ? !!chain && chain.id === TARGET_CHAIN_ID : true;
@@ -354,6 +392,7 @@ export default function Home() {
     setRefreshing(true);
     try {
       await Promise.all([refreshInfo(), refreshPhases()]);
+      lastRefreshAllAtRef.current = Date.now();
     } finally {
       setRefreshing(false);
     }
@@ -373,7 +412,7 @@ export default function Home() {
 
     const syncUiSettingsFromServer = async () => {
       try {
-        const response = await fetch("/api/launchpad-ui", { method: "GET", cache: "no-store" });
+        const response = await fetch("/api/launchpad-ui", { method: "GET" });
         const payload = (await response.json().catch(() => null)) as
           | { ok: true; settings?: Partial<LaunchpadUiSettings> }
           | { ok: false; error?: string }
@@ -387,16 +426,23 @@ export default function Home() {
         if (remoteIsNewer) {
           saveLaunchpadUiSettings(launchpadUiStorageKey, remote);
           setUiSettings(remote);
+          lastUiSyncAtRef.current = Date.now();
           return;
         }
         setUiSettings(local);
+        lastUiSyncAtRef.current = Date.now();
       } catch {
         // Keep local cache if server settings are unavailable.
       }
     };
 
     syncUiSettingsFromLocal();
-    void syncUiSettingsFromServer();
+    const initialLocalSettings = loadLaunchpadUiSettings(launchpadUiStorageKey, LAUNCHPAD_UI_DEFAULTS);
+    const shouldSyncImmediately =
+      !initialLocalSettings.updatedAt || Date.now() - initialLocalSettings.updatedAt >= LAUNCHPAD_UI_REFRESH_MS;
+    if (shouldSyncImmediately) {
+      void syncUiSettingsFromServer();
+    }
 
     const onStorage = (event: StorageEvent) => {
       if (!event.key || event.key === launchpadUiStorageKey) {
@@ -413,8 +459,9 @@ export default function Home() {
     window.addEventListener("storage", onStorage);
     window.addEventListener(LAUNCHPAD_UI_SETTINGS_EVENT, onSettingsUpdated as EventListener);
     const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       void syncUiSettingsFromServer();
-    }, 30_000);
+    }, LAUNCHPAD_UI_REFRESH_MS);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("storage", onStorage);
@@ -425,8 +472,9 @@ export default function Home() {
   useEffect(() => {
     if (!mounted) return;
     const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       void refreshAll();
-    }, 45000);
+    }, STATS_REFRESH_MS);
     return () => window.clearInterval(timer);
   }, [mounted]);
 
@@ -440,16 +488,79 @@ export default function Home() {
       if (!disposed && rate) {
         setEthUsdRate(rate);
       }
+      lastPriceSyncAtRef.current = Date.now();
     };
     void syncRate();
     const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       void syncRate();
-    }, 60_000);
+    }, ETH_PRICE_REFRESH_MS);
     return () => {
       disposed = true;
       window.clearInterval(timer);
     };
   }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted || typeof window === "undefined") return;
+
+    const syncUiSettingsFromServer = async () => {
+      try {
+        const response = await fetch("/api/launchpad-ui", { method: "GET" });
+        const payload = (await response.json().catch(() => null)) as
+          | { ok: true; settings?: Partial<LaunchpadUiSettings> }
+          | { ok: false; error?: string }
+          | null;
+        if (!response.ok || !payload?.ok) {
+          return;
+        }
+        const remote = toLaunchpadUiSettings(payload.settings, LAUNCHPAD_UI_DEFAULTS);
+        const local = loadLaunchpadUiSettings(launchpadUiStorageKey, LAUNCHPAD_UI_DEFAULTS);
+        const remoteIsNewer = (remote.updatedAt || 0) >= (local.updatedAt || 0);
+        if (remoteIsNewer) {
+          saveLaunchpadUiSettings(launchpadUiStorageKey, remote);
+          setUiSettings(remote);
+        } else {
+          setUiSettings(local);
+        }
+        lastUiSyncAtRef.current = Date.now();
+      } catch {
+        // Keep local cache if server settings are unavailable.
+      }
+    };
+
+    const maybeRefreshVisibleState = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastVisibilityRefreshAtRef.current < VISIBILITY_REFRESH_DEBOUNCE_MS) return;
+      lastVisibilityRefreshAtRef.current = now;
+
+      if (now - lastRefreshAllAtRef.current >= 30_000) {
+        void refreshAll();
+      }
+      if (now - lastUiSyncAtRef.current >= 60_000) {
+        void syncUiSettingsFromServer();
+      }
+      if (NATIVE_SYMBOL.toUpperCase() === "ETH" && now - lastPriceSyncAtRef.current >= 300_000) {
+        void fetchEthUsdRate()
+          .then((rate) => {
+            setEthUsdChecked(true);
+            if (rate) {
+              setEthUsdRate(rate);
+            }
+            lastPriceSyncAtRef.current = Date.now();
+          })
+          .catch(() => {});
+      }
+    };
+
+    window.addEventListener("focus", maybeRefreshVisibleState);
+    document.addEventListener("visibilitychange", maybeRefreshVisibleState);
+    return () => {
+      window.removeEventListener("focus", maybeRefreshVisibleState);
+      document.removeEventListener("visibilitychange", maybeRefreshVisibleState);
+    };
+  }, [mounted, launchpadUiStorageKey]);
 
   const fetchAllowlistProof = useCallback(async (phaseId: number, wallet: string) => {
     const walletKey = wallet.toLowerCase();

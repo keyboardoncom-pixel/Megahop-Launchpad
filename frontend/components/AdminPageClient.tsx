@@ -114,6 +114,15 @@ const isLikelyValidUri = (value: string) => {
   return /^ipfs:\/\/.+/i.test(next) || /^https?:\/\/.+/i.test(next);
 };
 
+const resolvePreviewUri = (value: string) => {
+  const next = value.trim();
+  if (!next) return "";
+  if (/^ipfs:\/\/.+/i.test(next)) {
+    return `https://gateway.lighthouse.storage/ipfs/${next.replace(/^ipfs:\/\//i, "")}`;
+  }
+  return next;
+};
+
 const formatTimeAgo = (timestamp: number) => {
   const delta = Date.now() - timestamp;
   if (delta < 60_000) return "just now";
@@ -1463,6 +1472,8 @@ export default function Admin() {
       : "/public/allowlists/phase-<new-id>.json";
 
   const previewBanner = normalizedLaunchpadUiForm.collectionBannerUrl || notRevealedURI;
+  const previewBannerSrc = resolvePreviewUri(previewBanner);
+  const revealPreviewSrc = resolvePreviewUri(notRevealedURI);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockMs(Date.now()), 1000);
@@ -2158,7 +2169,7 @@ export default function Admin() {
                       <aside className="admin-metadata-preview">
                         <p className="admin-overview-label">Asset preview</p>
                         <div className="admin-preview-media">
-                          {notRevealedURI ? <img src={notRevealedURI} alt="Reveal preview" /> : <span>No preview</span>}
+                          {revealPreviewSrc ? <img src={revealPreviewSrc} alt="Reveal preview" /> : <span>No preview</span>}
                         </div>
                         <div className="admin-preview-meta">
                           <p>
@@ -2417,7 +2428,7 @@ export default function Admin() {
                     </div>
                     <div className="admin-preview-card">
                       <div className="admin-preview-banner">
-                        {previewBanner ? <img src={previewBanner} alt="Banner preview" /> : <span>No banner set</span>}
+                        {previewBannerSrc ? <img src={previewBannerSrc} alt="Banner preview" /> : <span>No banner set</span>}
                       </div>
                       <h3>{normalizedLaunchpadUiForm.collectionName}</h3>
                       <p>{normalizedLaunchpadUiForm.collectionDescription}</p>

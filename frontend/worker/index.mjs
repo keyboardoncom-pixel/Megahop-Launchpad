@@ -118,13 +118,27 @@ const handleLaunchpadUi = async (request, env) => {
       const raw = await kv.get(storageKey);
       if (typeof raw === "string" && raw.trim()) {
         try {
-          return json({ ok: true, settings: toSettings(JSON.parse(raw), fallbackDefaults), source: "kv" });
+          return json(
+            { ok: true, settings: toSettings(JSON.parse(raw), fallbackDefaults), source: "kv" },
+            {
+              headers: {
+                "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=86400",
+              },
+            },
+          );
         } catch {
           // fall through to defaults
         }
       }
     }
-    return json({ ok: true, settings: { ...fallbackDefaults, updatedAt: 0 }, source: "defaults" });
+    return json(
+      { ok: true, settings: { ...fallbackDefaults, updatedAt: 0 }, source: "defaults" },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=86400",
+        },
+      },
+    );
   }
 
   if (request.method !== "POST") {
