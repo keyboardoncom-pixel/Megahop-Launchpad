@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { metaMaskWallet, phantomWallet, rabbyWallet } from "@rainbow-me/rainbowkit/wallets";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig } from "wagmi";
 import { defineChain, http } from "viem";
 import { WalletProvider } from "../lib/wallet";
+import { rainbowkitWallets } from "../lib/rainbowkitWallets";
 
 type ClientThirdwebProviderProps = {
   children: ReactNode;
@@ -16,10 +16,6 @@ const TARGET_RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://mainnet.megae
 const TARGET_NETWORK_NAME = process.env.NEXT_PUBLIC_NETWORK_NAME || "MegaETH Mainnet";
 const TARGET_EXPLORER_URL = process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL || "https://mega.etherscan.io";
 const TARGET_NATIVE_SYMBOL = process.env.NEXT_PUBLIC_NATIVE_SYMBOL || "ETH";
-const BRAND_NAME = process.env.NEXT_PUBLIC_BRAND_NAME || "Megahop";
-const WALLETCONNECT_PROJECT_ID =
-  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "00000000000000000000000000000000";
-
 const megaEthChain = defineChain({
   id: TARGET_CHAIN_ID,
   name: TARGET_NETWORK_NAME,
@@ -46,19 +42,18 @@ const megaEthChain = defineChain({
     : undefined,
 });
 
-const recommendedWallets = [metaMaskWallet, phantomWallet, rabbyWallet].map((createWallet, index) => {
-  const wallet = createWallet({
-    projectId: WALLETCONNECT_PROJECT_ID,
+const recommendedWallets = rainbowkitWallets.map((walletRecord, index) => {
+  const wallet = walletRecord.createWallet({
+    projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "00000000000000000000000000000000",
     walletConnectParameters: {
       metadata: {
-        name: BRAND_NAME,
-        description: `${BRAND_NAME} official mint`,
+        name: process.env.NEXT_PUBLIC_BRAND_NAME || "Megahop",
+        description: `${process.env.NEXT_PUBLIC_BRAND_NAME || "Megahop"} official mint`,
         url: "https://megahop-launchpad.brianlarrystorn.workers.dev",
         icons: [],
       },
     },
   } as any);
-
   return wallet.createConnector({
     rkDetails: {
       id: wallet.id,

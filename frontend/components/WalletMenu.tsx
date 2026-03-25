@@ -14,22 +14,12 @@ const NFT_CARD_FALLBACK_IMAGE = "/megaeth-assets/image_7.png";
 const DEPLOY_BLOCK = Number(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || 0);
 const MINT_EVENT_QUERY_BLOCK_CHUNK = 40_000;
 const NFT_PREVIEW_LIMIT = 8;
-const WALLET_ICON_BY_ID: Record<string, string> = {
-  "io.metamask": "/wallets/metamask.svg",
-  "app.phantom": "/wallets/phantom.svg",
-  "io.rabby": "/wallets/rabby.png",
-  "me.rainbow": "/wallets/more.svg",
-  "io.zerion.wallet": "/wallets/more.svg",
-  walletConnect: "/wallets/walletconnect.svg",
-  "com.base.wallet": "/wallets/base.svg",
-  "xyz.abs.privy": "/wallets/abstract.svg",
-};
 
 type WalletOption = {
   id: "io.metamask" | "app.phantom" | "io.rabby";
   label: string;
   subtitle: string;
-  fallbackIcon: string;
+  icon: string;
 };
 
 const normalizeMediaUri = (uri: string) => {
@@ -77,27 +67,6 @@ const queryMintEventsWithFallback = async (
   return events;
 };
 
-const CONNECT_WALLET_OPTIONS: WalletOption[] = [
-  {
-    id: "io.metamask",
-    label: "MetaMask",
-    subtitle: "Browser & Mobile",
-    fallbackIcon: WALLET_ICON_BY_ID["io.metamask"],
-  },
-  {
-    id: "app.phantom",
-    label: "Phantom",
-    subtitle: "Browser Wallet",
-    fallbackIcon: WALLET_ICON_BY_ID["app.phantom"],
-  },
-  {
-    id: "io.rabby",
-    label: "Rabby",
-    subtitle: "Browser Wallet",
-    fallbackIcon: WALLET_ICON_BY_ID["io.rabby"],
-  },
-];
-
 type Status = {
   type: "pending" | "success" | "error" | "idle";
   message: string;
@@ -116,6 +85,7 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
     connectionStatus,
     connectWallet,
     disconnectWallet,
+    walletOptions,
   } = useWalletState();
   const isConnecting = connectionStatus === "connecting";
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -283,9 +253,19 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
   }, [account?.address]);
 
   const walletIconSrc = useMemo(() => {
-    const walletId = wallet?.id || "";
-    return WALLET_ICON_BY_ID[walletId] || wallet?.icon || DEFAULT_WALLET_ICON_ASSET;
-  }, [wallet?.icon, wallet?.id]);
+    return wallet?.icon || DEFAULT_WALLET_ICON_ASSET;
+  }, [wallet?.icon]);
+
+  const connectWalletOptions = useMemo<WalletOption[]>(
+    () =>
+      walletOptions.map((option) => ({
+        id: option.id,
+        label: option.label,
+        subtitle: option.subtitle,
+        icon: option.icon || DEFAULT_WALLET_ICON_ASSET,
+      })),
+    [walletOptions],
+  );
 
   const mintedPreviewIds = useMemo(() => mintedTokenIds.slice(0, NFT_PREVIEW_LIMIT), [mintedTokenIds]);
   const mintedRemainderCount = Math.max(0, mintedTokenIds.length - mintedPreviewIds.length);
@@ -361,9 +341,9 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
                   <h3>Connect Your Wallet</h3>
                 </header>
                 <div className="wallet-connect-list">
-                  {CONNECT_WALLET_OPTIONS.map((option) => {
+                  {connectWalletOptions.map((option) => {
                     const isOptionConnecting = isConnecting && connectingWalletId === option.id;
-                    const optionIcon = option.fallbackIcon;
+                    const optionIcon = option.icon;
                     return (
                       <button
                         key={option.id}

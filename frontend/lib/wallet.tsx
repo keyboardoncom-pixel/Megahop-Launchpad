@@ -11,15 +11,12 @@ import {
 } from "react";
 import { ethers } from "ethers";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
-
-export type BrowserWalletId = "io.metamask" | "app.phantom" | "io.rabby";
-
-type WalletDescriptor = {
-  id: BrowserWalletId;
-  label: string;
-  subtitle: string;
-  icon: string;
-};
+import {
+  BrowserWalletId,
+  WalletDescriptor,
+  buildWalletDescriptors,
+  loadRainbowKitWalletIcons,
+} from "./rainbowkitWallets";
 
 type WalletAccount = {
   address: string;
@@ -50,26 +47,7 @@ type ConnectorLike = {
   getProvider?: () => Promise<any>;
 };
 
-const WALLET_OPTIONS: WalletDescriptor[] = [
-  {
-    id: "io.metamask",
-    label: "MetaMask",
-    subtitle: "Browser Wallet",
-    icon: "/wallets/metamask.svg",
-  },
-  {
-    id: "app.phantom",
-    label: "Phantom",
-    subtitle: "Browser Wallet",
-    icon: "/wallets/phantom.svg",
-  },
-  {
-    id: "io.rabby",
-    label: "Rabby",
-    subtitle: "Browser Wallet",
-    icon: "/wallets/rabby.png",
-  },
-];
+const WALLET_OPTIONS: WalletDescriptor[] = buildWalletDescriptors();
 
 const TARGET_CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 0);
 const TARGET_CHAIN_NAME = process.env.NEXT_PUBLIC_NETWORK_NAME || "MegaETH";
@@ -122,6 +100,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const [provider, setProvider] = useState<any | null>(null);
   const [manualStatus, setManualStatus] = useState<"connecting" | null>(null);
+  const [walletOptions, setWalletOptions] = useState<WalletDescriptor[]>(WALLET_OPTIONS);
   const activeProviderRef = useRef<any | null>(null);
 
   const walletId = useMemo(() => getWalletIdFromConnector(connector as ConnectorLike | null), [connector]);
@@ -134,6 +113,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
     return "disconnected";
   }, [address, manualStatus, status]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const hydrateWalletIcons = async () => {
+      const icons = await loadRainbowKitWalletIcons();
+      if (cancelled) return;
+      setWalletOptions((current) =>
+        current.map((wallet) => ({
+          ...wallet,
+          icon: icons[wallet.id] || wallet.icon,
+        })),
+      );
+    };
+    void hydrateWalletIcons();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,14 +229,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       account,
       chain,
       connectionStatus,
-      wallet: getWalletById(walletId),
+      wallet: walletOptions.find((entry) => entry.id === walletId) || null,
       provider,
-      walletOptions: WALLET_OPTIONS,
+      walletOptions,
       connectWallet,
       disconnectWallet,
       switchToTargetChain,
     };
-  }, [address, chainId, connectionStatus, provider, walletId]);
+  }, [address, chainId, connectionStatus, provider, walletId, walletOptions]);
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }
