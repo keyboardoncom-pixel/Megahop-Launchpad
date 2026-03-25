@@ -901,11 +901,7 @@ export default function Admin() {
     let signature = "";
     try {
       if (typeof account?.signMessage === "function") {
-        const signed = await account.signMessage({ message } as any);
-        signature = typeof signed === "string" ? signed : "";
-        if (!signature) {
-          signature = await account.signMessage(message as any);
-        }
+        signature = await account.signMessage(message);
       } else {
         const contract = await getWriteContract(provider);
         signature = await contract.signer.signMessage(message);
