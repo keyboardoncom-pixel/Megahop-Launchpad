@@ -87,6 +87,18 @@ const getWalletIdFromConnector = (connector: ConnectorLike | null | undefined): 
   if (rdns === "io.rabby" || id === "rabby" || name.includes("rabby")) {
     return "io.rabby";
   }
+  if (rdns === "com.coinbase.wallet" || id === "coinbasewallet" || id === "coinbase" || name.includes("coinbase")) {
+    return "com.coinbase.wallet";
+  }
+  if (rdns === "me.rainbow" || id === "rainbow" || name.includes("rainbow")) {
+    return "me.rainbow";
+  }
+  if (rdns === "io.zerion.wallet" || id === "zerion" || name.includes("zerion")) {
+    return "io.zerion.wallet";
+  }
+  if (rdns === "com.okx.wallet" || id === "okxwallet" || id === "okx" || name.includes("okx")) {
+    return "com.okx.wallet";
+  }
   return null;
 };
 

@@ -1,8 +1,23 @@
 "use client";
 
-import { metaMaskWallet, phantomWallet, rabbyWallet } from "@rainbow-me/rainbowkit/wallets";
+import {
+  coinbaseWallet,
+  metaMaskWallet,
+  okxWallet,
+  phantomWallet,
+  rabbyWallet,
+  rainbowWallet,
+  zerionWallet,
+} from "@rainbow-me/rainbowkit/wallets";
 
-export type BrowserWalletId = "io.metamask" | "app.phantom" | "io.rabby";
+export type BrowserWalletId =
+  | "io.metamask"
+  | "app.phantom"
+  | "io.rabby"
+  | "com.coinbase.wallet"
+  | "me.rainbow"
+  | "io.zerion.wallet"
+  | "com.okx.wallet";
 
 export type WalletDescriptor = {
   id: BrowserWalletId;
@@ -36,6 +51,34 @@ const baseWallets = [
     fallbackLabel: "Rabby Wallet",
     fallbackSubtitle: "Browser Wallet",
     fallbackIcon: "/wallets/rabby.png",
+  },
+  {
+    id: "com.coinbase.wallet" as const,
+    createWallet: coinbaseWallet,
+    fallbackLabel: "Coinbase Wallet",
+    fallbackSubtitle: "Browser & Mobile",
+    fallbackIcon: "/wallets/coinbase.svg",
+  },
+  {
+    id: "me.rainbow" as const,
+    createWallet: rainbowWallet,
+    fallbackLabel: "Rainbow",
+    fallbackSubtitle: "Mobile Wallet",
+    fallbackIcon: "/wallets/more.svg",
+  },
+  {
+    id: "io.zerion.wallet" as const,
+    createWallet: zerionWallet,
+    fallbackLabel: "Zerion",
+    fallbackSubtitle: "Mobile Wallet",
+    fallbackIcon: "/wallets/more.svg",
+  },
+  {
+    id: "com.okx.wallet" as const,
+    createWallet: okxWallet,
+    fallbackLabel: "OKX Wallet",
+    fallbackSubtitle: "Browser & Mobile",
+    fallbackIcon: "/wallets/okx.svg",
   },
 ] as const;
 

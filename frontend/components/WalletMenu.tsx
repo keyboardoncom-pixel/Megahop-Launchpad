@@ -16,7 +16,14 @@ const MINT_EVENT_QUERY_BLOCK_CHUNK = 40_000;
 const NFT_PREVIEW_LIMIT = 8;
 
 type WalletOption = {
-  id: "io.metamask" | "app.phantom" | "io.rabby";
+  id:
+    | "io.metamask"
+    | "app.phantom"
+    | "io.rabby"
+    | "com.coinbase.wallet"
+    | "me.rainbow"
+    | "io.zerion.wallet"
+    | "com.okx.wallet";
   label: string;
   subtitle: string;
   icon: string;
@@ -390,6 +397,15 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
             <footer className="wallet-pop-footer wallet-connect-footer">
               <img src={MEGAETH_LOGO_ASSET} alt="Megahop logo" className="wallet-pop-brand-logo" />
               <div className="wallet-connect-footer-actions">
+                <a
+                  href="https://rainbowkit.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="wallet-powered-by"
+                  aria-label="Open RainbowKit"
+                >
+                  <span className="wallet-powered-by-text">Powered by RainbowKit</span>
+                </a>
                 <a
                   href="https://mega.etherscan.io/"
                   target="_blank"
