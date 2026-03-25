@@ -27,6 +27,7 @@ type WalletOption = {
   label: string;
   subtitle: string;
   icon: string;
+  installed?: boolean;
 };
 
 const normalizeMediaUri = (uri: string) => {
@@ -270,10 +271,10 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
         label: option.label,
         subtitle: option.subtitle,
         icon: option.icon || DEFAULT_WALLET_ICON_ASSET,
+        installed: option.installed,
       })),
     [walletOptions],
   );
-
   const mintedPreviewIds = useMemo(() => mintedTokenIds.slice(0, NFT_PREVIEW_LIMIT), [mintedTokenIds]);
   const mintedRemainderCount = Math.max(0, mintedTokenIds.length - mintedPreviewIds.length);
 
@@ -356,13 +357,14 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
                   {connectWalletOptions.map((option) => {
                     const isOptionConnecting = isConnecting && connectingWalletId === option.id;
                     const optionIcon = option.icon;
+                    const isUnavailable = option.installed === false;
                     return (
                       <button
                         key={option.id}
                         type="button"
-                        className="wallet-connect-item"
+                        className={`wallet-connect-item ${isUnavailable ? "is-disabled" : ""}`}
                         onClick={() => handleConnectWallet(option)}
-                        disabled={isConnecting}
+                        disabled={isConnecting || isUnavailable}
                       >
                         <span className="wallet-connect-item-icon">
                           <img src={optionIcon} alt="" aria-hidden className="wallet-connect-item-icon-img" />
@@ -370,7 +372,7 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
                         <span className="wallet-connect-item-meta">
                           <span className="wallet-connect-item-label">{option.label}</span>
                           <span className="wallet-connect-item-subtitle">
-                            {isOptionConnecting ? "CONNECTING..." : option.subtitle}
+                            {isOptionConnecting ? "CONNECTING..." : isUnavailable ? "Not installed in this browser" : option.subtitle}
                           </span>
                         </span>
                       </button>

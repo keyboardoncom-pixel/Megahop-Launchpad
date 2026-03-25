@@ -110,6 +110,47 @@ const getWalletIdFromConnector = (connector: ConnectorLike | null | undefined): 
 const getConnectorForWallet = (connectors: readonly ConnectorLike[], walletId: BrowserWalletId) =>
   connectors.find((connector) => getWalletIdFromConnector(connector) === walletId) || null;
 
+const getInjectedProviders = () => {
+  if (typeof window === "undefined") return [] as any[];
+  const ethereum = (window as any).ethereum;
+  const providers = Array.isArray(ethereum?.providers)
+    ? ethereum.providers
+    : ethereum
+    ? [ethereum]
+    : [];
+
+  const phantom = (window as any).phantom?.ethereum;
+  if (phantom) {
+    providers.push(phantom);
+  }
+
+  return Array.from(new Set(providers.filter(Boolean)));
+};
+
+const isWalletInstalled = (walletId: BrowserWalletId) => {
+  const providers = getInjectedProviders();
+  return providers.some((provider) => {
+    switch (walletId) {
+      case "io.metamask":
+        return Boolean(provider?.isMetaMask && !provider?.isRabby && !provider?.isPhantom && !provider?.isRainbow);
+      case "app.phantom":
+        return Boolean(provider?.isPhantom);
+      case "io.rabby":
+        return Boolean(provider?.isRabby);
+      case "com.coinbase.wallet":
+        return Boolean(provider?.isCoinbaseWallet);
+      case "me.rainbow":
+        return Boolean(provider?.isRainbow);
+      case "io.zerion.wallet":
+        return Boolean(provider?.isZerion);
+      case "com.okx.wallet":
+        return Boolean(provider?.isOkxWallet || provider?.isOKXWallet);
+      default:
+        return false;
+    }
+  });
+};
+
 export function WalletProvider({ children }: { children: ReactNode }) {
   const { address, chainId, connector, status } = useAccount();
   const { connectAsync, connectors } = useConnect();
@@ -145,6 +186,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         current.map((wallet) => ({
           ...wallet,
           icon: icons[wallet.id] || wallet.icon,
+          installed: isWalletInstalled(wallet.id),
         })),
       );
     };
@@ -160,6 +202,28 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (!storedWalletId) return;
     if (!WALLET_OPTIONS.some((wallet) => wallet.id === storedWalletId)) return;
     setSelectedWalletId(storedWalletId as BrowserWalletId);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const refreshInstalledWallets = () => {
+      setWalletOptions((current) =>
+        current.map((wallet) => ({
+          ...wallet,
+          installed: isWalletInstalled(wallet.id),
+        })),
+      );
+    };
+
+    refreshInstalledWallets();
+    window.addEventListener("eip6963:announceProvider", refreshInstalledWallets as EventListener);
+    window.addEventListener("ethereum#initialized", refreshInstalledWallets as EventListener);
+    window.addEventListener("focus", refreshInstalledWallets);
+    return () => {
+      window.removeEventListener("eip6963:announceProvider", refreshInstalledWallets as EventListener);
+      window.removeEventListener("ethereum#initialized", refreshInstalledWallets as EventListener);
+      window.removeEventListener("focus", refreshInstalledWallets);
+    };
   }, []);
 
   useEffect(() => {
@@ -257,6 +321,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const connectWallet = async (nextWalletId: BrowserWalletId) => {
+    if (!isWalletInstalled(nextWalletId)) {
+      throw new Error("Wallet extension not found in this browser.");
+    }
+
     const nextConnector = getConnectorForWallet(connectors as readonly ConnectorLike[], nextWalletId);
     if (!nextConnector) {
       throw new Error("Wallet extension not found in this browser.");
