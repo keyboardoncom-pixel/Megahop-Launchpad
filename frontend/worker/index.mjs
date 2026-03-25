@@ -534,6 +534,10 @@ const fetchStaticAsset = async (request, env) => {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.hostname === "www.megahop-launchpad.xyz") {
+      url.hostname = "megahop-launchpad.xyz";
+      return Response.redirect(url.toString(), 301);
+    }
 
     if (url.pathname === "/api/launchpad-ui") {
       return handleLaunchpadUi(request, env);
