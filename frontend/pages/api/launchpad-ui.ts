@@ -14,6 +14,11 @@ type LaunchpadUiApiResponse =
   | { ok: true; settings: LaunchpadUiSettings; source: "kv" | "defaults" }
   | { ok: false; error: string };
 
+type KvLikeBinding = {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string): Promise<void>;
+};
+
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 0);
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "";
@@ -48,6 +53,30 @@ const getStorageKey = () => `launchpad-ui:${CONTRACT_ADDRESS.toLowerCase()}:${CH
 
 const kvConfigured = () => KV_REST_API_URL.length > 0 && KV_REST_API_TOKEN.length > 0;
 
+const getCloudflareKvBinding = async (): Promise<KvLikeBinding | null> => {
+  const contextFromGlobal = (globalThis as Record<PropertyKey, unknown>)[Symbol.for("__cloudflare-context__")] as
+    | { env?: Record<string, unknown> }
+    | undefined;
+  const globalBinding = contextFromGlobal?.env?.LAUNCHPAD_UI_KV as KvLikeBinding | undefined;
+  if (globalBinding && typeof globalBinding.get === "function" && typeof globalBinding.put === "function") {
+    return globalBinding;
+  }
+
+  try {
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    const context = await getCloudflareContext({ async: true });
+    const binding = (context?.env as Record<string, unknown> | undefined)?.LAUNCHPAD_UI_KV as
+      | KvLikeBinding
+      | undefined;
+    if (binding && typeof binding.get === "function" && typeof binding.put === "function") {
+      return binding;
+    }
+  } catch {
+    // Ignore and fall back to REST/local behavior.
+  }
+  return null;
+};
+
 const normalizeStoredSettings = (raw: unknown): LaunchpadUiSettings => {
   const parsed =
     raw && typeof raw === "object" ? (raw as Partial<LaunchpadUiSettings>) : ({} as Partial<LaunchpadUiSettings>);
@@ -77,21 +106,43 @@ const callKv = async (command: (string | number)[]) => {
 };
 
 const loadFromKv = async (): Promise<LaunchpadUiSettings | null> => {
-  if (!kvConfigured()) return null;
-  const raw = await callKv(["GET", getStorageKey()]);
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    return normalizeStoredSettings(parsed);
-  } catch {
-    return null;
+  const cfKv = await getCloudflareKvBinding();
+  if (cfKv) {
+    const raw = await cfKv.get(getStorageKey());
+    if (typeof raw === "string" && raw.trim()) {
+      try {
+        return normalizeStoredSettings(JSON.parse(raw));
+      } catch {
+        return null;
+      }
+    }
   }
+
+  if (kvConfigured()) {
+    const raw = await callKv(["GET", getStorageKey()]);
+    if (typeof raw !== "string" || !raw.trim()) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      return normalizeStoredSettings(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 };
 
 const saveToKv = async (settings: LaunchpadUiSettings) => {
-  if (!kvConfigured()) {
-    throw new Error("Vercel KV is not configured on server.");
+  const cfKv = await getCloudflareKvBinding();
+  if (cfKv) {
+    await cfKv.put(getStorageKey(), JSON.stringify(settings));
+    return;
   }
+
+  if (!kvConfigured()) {
+    throw new Error("Server storage is not configured. Add Cloudflare KV binding or KV_REST_API_*.");
+  }
+
   await callKv(["SET", getStorageKey(), JSON.stringify(settings)]);
 };
 

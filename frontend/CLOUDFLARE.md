@@ -43,6 +43,7 @@ Public runtime config:
 - `NEXT_PUBLIC_MINTERS_LOOKBACK_BLOCKS`
 
 Server-side API config:
+- `LAUNCHPAD_UI_KV` Cloudflare KV binding for persisted mint-page settings
 - `ALLOWLIST_API_ORIGINS`
 - `ALLOWLIST_RATE_LIMIT_WINDOW_MS`
 - `ALLOWLIST_RATE_LIMIT_MAX_REQUESTS`
@@ -67,3 +68,4 @@ npx wrangler dev
 - The frontend is deployed successfully on Cloudflare Workers/OpenNext.
 - Runtime wallet support is now limited to injected EVM wallets used by this project: `MetaMask`, `Phantom`, and `Rabby`.
 - `npm run deploy` includes an automatic post-build patch for the OpenNext single-package path bug that can generate `process.chdir("")` in the worker bundle.
+- Mint page settings can persist in Cloudflare KV via the `LAUNCHPAD_UI_KV` binding, with REST KV fallback still supported for environments outside Cloudflare.

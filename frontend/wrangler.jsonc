@@ -1,13 +1,20 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "megahop-launchpad",
-  "main": ".open-next/worker.js",
+  "main": "worker/index.mjs",
   "compatibility_date": "2026-03-25",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "kv_namespaces": [
+    {
+      "binding": "LAUNCHPAD_UI_KV",
+      "id": "cbbff868f85442a8813f99b19ffc845d",
+      "preview_id": "cbbff868f85442a8813f99b19ffc845d"
+    }
+  ],
   "vars": {
     "NEXT_PUBLIC_CONTRACT_ADDRESS": "0x980B3e9a5bca5bE88dfE07CC4b7c4Bb09e775b04",
     "NEXT_PUBLIC_RPC_URL": "https://mainnet.megaeth.com/rpc",
