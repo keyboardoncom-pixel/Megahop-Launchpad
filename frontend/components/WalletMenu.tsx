@@ -17,9 +17,11 @@ const NFT_PREVIEW_LIMIT = 8;
 const WALLET_ICON_BY_ID: Record<string, string> = {
   "io.metamask": "/wallets/metamask.svg",
   "com.coinbase.wallet": "/wallets/coinbase.svg",
-  "app.phantom": "/wallets/more.svg",
+  "app.phantom": "/wallets/phantom.svg",
+  "io.rabby": "/wallets/rabby.svg",
+  "com.okx.wallet": "/wallets/okx.svg",
+  "com.trustwallet": "/wallets/trust.svg",
   "me.rainbow": "/wallets/more.svg",
-  "io.rabby": "/wallets/more.svg",
   "io.zerion.wallet": "/wallets/more.svg",
   walletConnect: "/wallets/walletconnect.svg",
   "com.base.wallet": "/wallets/base.svg",
@@ -27,7 +29,13 @@ const WALLET_ICON_BY_ID: Record<string, string> = {
 };
 
 type WalletOption = {
-  id: "io.metamask" | "app.phantom" | "io.rabby";
+  id:
+    | "io.metamask"
+    | "app.phantom"
+    | "io.rabby"
+    | "com.coinbase.wallet"
+    | "com.okx.wallet"
+    | "com.trustwallet";
   label: string;
   subtitle: string;
   fallbackIcon: string;
@@ -96,6 +104,24 @@ const CONNECT_WALLET_OPTIONS: WalletOption[] = [
     label: "Rabby",
     subtitle: "Browser Wallet",
     fallbackIcon: WALLET_ICON_BY_ID["io.rabby"],
+  },
+  {
+    id: "com.coinbase.wallet",
+    label: "Coinbase Wallet",
+    subtitle: "Browser & Mobile",
+    fallbackIcon: WALLET_ICON_BY_ID["com.coinbase.wallet"],
+  },
+  {
+    id: "com.okx.wallet",
+    label: "OKX Wallet",
+    subtitle: "Browser Wallet",
+    fallbackIcon: WALLET_ICON_BY_ID["com.okx.wallet"],
+  },
+  {
+    id: "com.trustwallet",
+    label: "Trust Wallet",
+    subtitle: "Browser & Mobile",
+    fallbackIcon: WALLET_ICON_BY_ID["com.trustwallet"],
   },
 ];
 
@@ -395,7 +421,9 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
                   <p className="wallet-connect-panel-copy">
                     {isConnecting ? "Approve the request in your wallet." : "Connect a wallet to get started."}
                   </p>
-                  <p className="wallet-connect-panel-hint">MetaMask, Phantom, and Rabby supported.</p>
+                  <p className="wallet-connect-panel-hint">
+                    MetaMask, Phantom, Rabby, Coinbase Wallet, OKX Wallet, and Trust Wallet supported.
+                  </p>
                 </div>
               </section>
             </div>

@@ -20,7 +20,13 @@ declare global {
   }
 }
 
-export type BrowserWalletId = "io.metamask" | "app.phantom" | "io.rabby";
+export type BrowserWalletId =
+  | "io.metamask"
+  | "app.phantom"
+  | "io.rabby"
+  | "com.coinbase.wallet"
+  | "com.okx.wallet"
+  | "com.trustwallet";
 
 type WalletDescriptor = {
   id: BrowserWalletId;
@@ -62,13 +68,31 @@ const WALLET_OPTIONS: WalletDescriptor[] = [
     id: "app.phantom",
     label: "Phantom",
     subtitle: "Browser Wallet",
-    icon: "/wallets/more.svg",
+    icon: "/wallets/phantom.svg",
   },
   {
     id: "io.rabby",
     label: "Rabby",
     subtitle: "Browser Wallet",
-    icon: "/wallets/more.svg",
+    icon: "/wallets/rabby.svg",
+  },
+  {
+    id: "com.coinbase.wallet",
+    label: "Coinbase Wallet",
+    subtitle: "Browser & Mobile",
+    icon: "/wallets/coinbase.svg",
+  },
+  {
+    id: "com.okx.wallet",
+    label: "OKX Wallet",
+    subtitle: "Browser Wallet",
+    icon: "/wallets/okx.svg",
+  },
+  {
+    id: "com.trustwallet",
+    label: "Trust Wallet",
+    subtitle: "Browser & Mobile",
+    icon: "/wallets/trust.svg",
   },
 ];
 
@@ -98,8 +122,24 @@ const getWalletProvider = (walletId: BrowserWalletId): any | null => {
     return providers.find((provider) => provider?.isPhantom) || null;
   }
 
+  if (walletId === "com.coinbase.wallet") {
+    return providers.find((provider) => provider?.isCoinbaseWallet) || null;
+  }
+
   if (walletId === "io.rabby") {
     return providers.find((provider) => provider?.isRabby) || null;
+  }
+
+  if (walletId === "com.okx.wallet") {
+    return (
+      providers.find(
+        (provider) => provider?.isOkxWallet || provider?.isOKXWallet || provider?.isOkexWallet || provider?.isOKExWallet
+      ) || null
+    );
+  }
+
+  if (walletId === "com.trustwallet") {
+    return providers.find((provider) => provider?.isTrust || provider?.isTrustWallet) || null;
   }
 
   if (walletId === "io.metamask") {

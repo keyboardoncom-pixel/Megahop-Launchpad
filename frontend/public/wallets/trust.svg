@@ -1,0 +1,11 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="trustBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4AA3FF"/>
+      <stop offset="1" stop-color="#245BFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#trustBg)"/>
+  <path d="M32 14L46 19V31c0 9.38-5.75 17.84-14 21-8.25-3.16-14-11.62-14-21V19l14-5Z" fill="#fff"/>
+  <path d="M32 22 39 24.5V31c0 4.9-2.83 9.32-7 11.28C27.83 40.32 25 35.9 25 31v-6.5L32 22Z" fill="#245BFF"/>
+</svg>
