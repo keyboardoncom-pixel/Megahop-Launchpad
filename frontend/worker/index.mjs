@@ -79,6 +79,8 @@ const json = (body, init = {}) =>
     }),
   );
 
+const HTML_CACHE_CONTROL = "public, max-age=0, s-maxage=300, stale-while-revalidate=86400";
+
 const stableStringify = (value) => {
   if (Array.isArray(value)) {
     return `[${value.map((item) => stableStringify(item)).join(",")}]`;
@@ -502,21 +504,24 @@ const handleAllowlistUpsert = async (request, env) => {
 
 const fetchStaticAsset = async (request, env) => {
   const url = new URL(request.url);
-  const candidates = [url.pathname];
-
-  if (url.pathname === "/") {
-    candidates.push("/index.html");
-  } else if (!/\.[a-z0-9]+$/i.test(url.pathname)) {
-    candidates.push(`${url.pathname}.html`);
-    candidates.push(`${url.pathname.replace(/\/$/, "")}/index.html`);
-  }
+  const cleanPath = url.pathname || "/";
+  const hasExtension = /\.[a-z0-9]+$/i.test(cleanPath);
+  const candidates =
+    cleanPath === "/"
+      ? ["/index.html"]
+      : hasExtension
+      ? [cleanPath]
+      : cleanPath.endsWith("/")
+      ? [`${cleanPath}index.html`, `${cleanPath.replace(/\/$/, "")}.html`]
+      : [`${cleanPath}.html`, `${cleanPath}/index.html`];
 
   for (const candidate of candidates) {
     const candidateUrl = new URL(request.url);
     candidateUrl.pathname = candidate;
     const response = await env.ASSETS.fetch(new Request(candidateUrl.toString(), request));
     if (response.ok) {
-      return withDefaultHeaders(response);
+      const extraHeaders = candidate.endsWith(".html") ? { "Cache-Control": HTML_CACHE_CONTROL } : {};
+      return withDefaultHeaders(response, extraHeaders);
     }
   }
 

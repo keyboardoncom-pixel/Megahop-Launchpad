@@ -53,9 +53,8 @@ const loadFromKv = async (phaseId: number) => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  res.setHeader("Cache-Control", "no-store, max-age=0");
-
   if (req.method !== "GET") {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
     res.setHeader("Allow", "GET");
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
@@ -72,6 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const fromKv = await loadFromKv(phaseId);
     if (fromKv) {
+      res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=86400");
       return res.status(200).json(fromKv);
     }
   } catch {
@@ -80,10 +80,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const fromFile = await loadFromFile(phaseId);
+    res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=86400");
     return res.status(200).json(fromFile);
   } catch {
     // keep generic 404 for client fallback behavior
   }
 
+  res.setHeader("Cache-Control", "public, max-age=60, s-maxage=60, stale-while-revalidate=300");
   return res.status(404).json({ ok: false, error: "Allowlist proof not found" });
 }

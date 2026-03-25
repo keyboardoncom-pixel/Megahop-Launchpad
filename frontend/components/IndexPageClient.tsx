@@ -486,6 +486,9 @@ export default function Home() {
         const apiProof = extractProof(apiData);
         if (apiProof.length) return apiProof;
       }
+      if (apiRes.status === 404) {
+        return [];
+      }
     } catch {
       // fallback to static file
     }
