@@ -1,0 +1,44 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "megahop-launchpad",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-03-25",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "NEXT_PUBLIC_CONTRACT_ADDRESS": "0x980B3e9a5bca5bE88dfE07CC4b7c4Bb09e775b04",
+    "NEXT_PUBLIC_RPC_URL": "https://mainnet.megaeth.com/rpc",
+    "NEXT_PUBLIC_RPC_FALLBACK_URLS": "",
+    "NEXT_PUBLIC_RPC_TIMEOUT_MS": "8000",
+    "NEXT_PUBLIC_RPC_READ_RETRY_ATTEMPTS": "2",
+    "NEXT_PUBLIC_RPC_READ_RETRY_DELAY_MS": "250",
+    "NEXT_PUBLIC_STATS_REFRESH_MS": "45000",
+    "NEXT_PUBLIC_PHASES_REFRESH_MS": "120000",
+    "NEXT_PUBLIC_REFRESH_JITTER_MS": "5000",
+    "NEXT_PUBLIC_CHAIN_ID": "4326",
+    "NEXT_PUBLIC_NETWORK_NAME": "MegaETH Mainnet",
+    "NEXT_PUBLIC_NATIVE_SYMBOL": "ETH",
+    "NEXT_PUBLIC_BLOCK_EXPLORER_URL": "https://mega.etherscan.io",
+    "NEXT_PUBLIC_BRAND_NAME": "Megahop",
+    "NEXT_PUBLIC_COLLECTION_NAME": "Megahop",
+    "NEXT_PUBLIC_COLLECTION_DESCRIPTION": "The Megahop NFT collection on MegaETH with phased minting, allowlist control, admin tooling, and launchpad fee support.",
+    "NEXT_PUBLIC_COLLECTION_BANNER_URL": "",
+    "NEXT_PUBLIC_COLLECTION_WEBSITE": "",
+    "NEXT_PUBLIC_COLLECTION_TWITTER": "",
+    "NEXT_PUBLIC_DEPLOY_BLOCK": "11602549",
+    "NEXT_PUBLIC_ENABLE_MINTERS": "false",
+    "NEXT_PUBLIC_MINTERS_LOOKBACK_BLOCKS": "50000",
+    "ALLOWLIST_API_ORIGINS": "",
+    "ALLOWLIST_RATE_LIMIT_WINDOW_MS": "60000",
+    "ALLOWLIST_RATE_LIMIT_MAX_REQUESTS": "30",
+    "ALLOWLIST_MAX_WALLETS": "25000",
+    "ALLOWLIST_MAX_PROOF_DEPTH": "40",
+    "KV_REST_API_URL": ""
+  },
+  "observability": {
+    "enabled": true
+  }
+}

@@ -1,1 +1,4 @@
 .vercel
+.wrangler
+.dev.vars
+.dev.vars.*

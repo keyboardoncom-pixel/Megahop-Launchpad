@@ -352,33 +352,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   const serialized = JSON.stringify(payload, null, 2);
+  const shouldUseKv = kvConfigured();
   let savedToFile = false;
   let savedToKv = false;
   let fileError = "";
   let kvError = "";
 
-  try {
-    const allowlistDir = path.join(process.cwd(), "public", "allowlists");
-    await fs.mkdir(allowlistDir, { recursive: true });
-    const filePath = path.join(allowlistDir, `phase-${phaseId}.json`);
-    try {
-      const existing = await fs.readFile(filePath, "utf-8");
-      if (existing.trim() === serialized.trim()) {
-        savedToFile = true;
-      }
-    } catch {
-      // File not found is expected for a new phase.
-    }
-
-    if (!savedToFile) {
-      await fs.writeFile(filePath, serialized, "utf-8");
-      savedToFile = true;
-    }
-  } catch (error: any) {
-    fileError = error?.message || "Failed to write proof file on server";
-  }
-
-  if (kvConfigured()) {
+  if (shouldUseKv) {
     try {
       await saveAllowlistToKv(phaseId, serialized);
       savedToKv = true;
@@ -387,8 +367,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
   }
 
+  if (!shouldUseKv) {
+    try {
+      const allowlistDir = path.join(process.cwd(), "public", "allowlists");
+      await fs.mkdir(allowlistDir, { recursive: true });
+      const filePath = path.join(allowlistDir, `phase-${phaseId}.json`);
+      try {
+        const existing = await fs.readFile(filePath, "utf-8");
+        if (existing.trim() === serialized.trim()) {
+          savedToFile = true;
+        }
+      } catch {
+        // File not found is expected for a new phase.
+      }
+
+      if (!savedToFile) {
+        await fs.writeFile(filePath, serialized, "utf-8");
+        savedToFile = true;
+      }
+    } catch (error: any) {
+      fileError = error?.message || "Failed to write proof file on server";
+    }
+  }
+
   if (!savedToFile && !savedToKv) {
-    if (!kvConfigured()) {
+    if (!shouldUseKv) {
       return res
         .status(500)
         .json({ ok: false, error: `${fileError || "Failed to write proof file on server"}. Configure KV_REST_API_* for auto-publish on serverless.` });

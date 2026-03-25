@@ -3,6 +3,8 @@
 # Env files
 .env
 .env.*
+.dev.vars
+.dev.vars.*
 !/.env.example
 !**/.env.example
 
@@ -12,6 +14,8 @@
 # Next.js
 frontend/.next/
 frontend/out/
+frontend/.wrangler/
+frontend/.open-next/
 
 # Hardhat
 contracts/artifacts/

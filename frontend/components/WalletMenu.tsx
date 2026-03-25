@@ -1,18 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ethers } from "ethers";
-import {
-  useActiveAccount,
-  useActiveWallet,
-  useConnect,
-  useConnectModal,
-  useDisconnect,
-  useWalletBalance,
-  useWalletImage,
-} from "thirdweb/react";
-import { createWallet, getWalletInfo } from "thirdweb/wallets";
 import { ArrowRightOnRectangleIcon, WalletIcon } from "@heroicons/react/24/outline";
-import { THIRDWEB_CLIENT, TARGET_CHAIN } from "../lib/thirdweb";
 import { getReadContract, withReadRetry } from "../lib/contract";
+import { useWalletState } from "../lib/wallet";
 
 const EYE_ICON_ASSET = "/megaeth-assets/34d21957-44d3-485b-aaa8-cceeb44fa0a2.svg";
 const COPY_ICON_ASSET = "/megaeth-assets/0565fe0f-b764-430e-a8a3-c58ef5b4d7a4.svg";
@@ -37,7 +27,7 @@ const WALLET_ICON_BY_ID: Record<string, string> = {
 };
 
 type WalletOption = {
-  id: Parameters<typeof createWallet>[0];
+  id: "io.metamask" | "app.phantom" | "io.rabby";
   label: string;
   subtitle: string;
   fallbackIcon: string;
@@ -88,17 +78,6 @@ const queryMintEventsWithFallback = async (
   return events;
 };
 
-const CONNECT_MODAL_WALLET_IDS: Parameters<typeof createWallet>[0][] = [
-  "io.metamask",
-  "com.coinbase.wallet",
-  "app.phantom",
-  "me.rainbow",
-  "io.rabby",
-  "io.zerion.wallet",
-  "com.okex.wallet",
-  "walletConnect",
-];
-
 const CONNECT_WALLET_OPTIONS: WalletOption[] = [
   {
     id: "io.metamask",
@@ -113,28 +92,10 @@ const CONNECT_WALLET_OPTIONS: WalletOption[] = [
     fallbackIcon: WALLET_ICON_BY_ID["app.phantom"],
   },
   {
-    id: "com.coinbase.wallet",
-    label: "Base / Coinbase",
-    subtitle: "Browser & Mobile",
-    fallbackIcon: WALLET_ICON_BY_ID["com.coinbase.wallet"],
-  },
-  {
-    id: "me.rainbow",
-    label: "Rainbow",
-    subtitle: "Mobile Wallet",
-    fallbackIcon: WALLET_ICON_BY_ID["me.rainbow"],
-  },
-  {
     id: "io.rabby",
     label: "Rabby",
     subtitle: "Browser Wallet",
     fallbackIcon: WALLET_ICON_BY_ID["io.rabby"],
-  },
-  {
-    id: "io.zerion.wallet",
-    label: "Zerion",
-    subtitle: "Mobile Wallet",
-    fallbackIcon: WALLET_ICON_BY_ID["io.zerion.wallet"],
   },
 ];
 
@@ -148,52 +109,28 @@ type WalletMenuProps = {
 };
 
 export default function WalletMenu({ onStatus }: WalletMenuProps) {
-  const account = useActiveAccount();
-  const wallet = useActiveWallet();
-  const { connect, isConnecting } = useConnect({ client: THIRDWEB_CLIENT });
-  const { connect: connectWithModal, isConnecting: isConnectingWithModal } = useConnectModal();
-  const { disconnect } = useDisconnect();
-  const { data: nativeBalance } = useWalletBalance({
-    client: THIRDWEB_CLIENT,
-    address: account?.address,
-    chain: TARGET_CHAIN,
-  });
-  const { data: walletImage } = useWalletImage(wallet?.id);
+  const {
+    account,
+    wallet,
+    chain,
+    provider,
+    connectionStatus,
+    connectWallet,
+    disconnectWallet,
+  } = useWalletState();
+  const isConnecting = connectionStatus === "connecting";
   const rootRef = useRef<HTMLDivElement | null>(null);
   const copiedTimeoutRef = useRef<number | null>(null);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [connectingWalletId, setConnectingWalletId] = useState<string | null>(null);
-  const [connectWalletIconById, setConnectWalletIconById] = useState<Record<string, string>>({});
+  const [connectingWalletId, setConnectingWalletId] = useState<WalletOption["id"] | null>(null);
   const [memberSince, setMemberSince] = useState("");
   const [txCount, setTxCount] = useState(0);
   const [mintedTokenIds, setMintedTokenIds] = useState<string[]>([]);
   const [mintedNftLoading, setMintedNftLoading] = useState(false);
   const [mintedNftError, setMintedNftError] = useState("");
   const [nftTileImage, setNftTileImage] = useState(NFT_CARD_FALLBACK_IMAGE);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadWalletIcons = async () => {
-      const entries = await Promise.all(
-        CONNECT_WALLET_OPTIONS.map(async (option) => {
-          try {
-            const icon = await getWalletInfo(option.id, true);
-            return [option.id, icon || option.fallbackIcon] as const;
-          } catch {
-            return [option.id, option.fallbackIcon] as const;
-          }
-        })
-      );
-      if (!cancelled) {
-        setConnectWalletIconById(Object.fromEntries(entries));
-      }
-    };
-    void loadWalletIcons();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [nativeBalanceText, setNativeBalanceText] = useState("0 ETH");
 
   useEffect(() => {
     return () => {
@@ -312,66 +249,54 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
     return `${value.slice(0, 6)}...${value.slice(-4)}`;
   }, [account?.address]);
 
-  const balanceText = useMemo(() => {
-    const value = Number(nativeBalance?.displayValue || "0");
-    if (!Number.isFinite(value)) return `0 ${nativeBalance?.symbol || "ETH"}`;
-    const decimals = value >= 1 ? 4 : 6;
-    return `${value.toFixed(decimals)} ${nativeBalance?.symbol || "ETH"}`;
-  }, [nativeBalance?.displayValue, nativeBalance?.symbol]);
+  useEffect(() => {
+    let cancelled = false;
+    const loadNativeBalance = async () => {
+      if (!account?.address || !provider) {
+        setNativeBalanceText("0 ETH");
+        return;
+      }
+      try {
+        const web3Provider = new ethers.providers.Web3Provider(provider, "any");
+        const balance = await web3Provider.getBalance(account.address);
+        const symbol = process.env.NEXT_PUBLIC_NATIVE_SYMBOL || "ETH";
+        const value = Number(ethers.utils.formatEther(balance));
+        if (!cancelled) {
+          const decimals = value >= 1 ? 4 : 6;
+          setNativeBalanceText(`${value.toFixed(decimals)} ${symbol}`);
+        }
+      } catch {
+        if (!cancelled) {
+          setNativeBalanceText(`0 ${process.env.NEXT_PUBLIC_NATIVE_SYMBOL || "ETH"}`);
+        }
+      }
+    };
+    void loadNativeBalance();
+    return () => {
+      cancelled = true;
+    };
+  }, [account?.address, chain?.id, provider]);
 
   const explorerUrl = useMemo(() => {
-    const baseUrl = TARGET_CHAIN.blockExplorers?.[0]?.url;
+    const baseUrl = process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL || "";
     if (!baseUrl || !account?.address) return "";
     return `${baseUrl.replace(/\/$/, "")}/address/${account.address}`;
   }, [account?.address]);
 
   const walletIconSrc = useMemo(() => {
     const walletId = wallet?.id || "";
-    return walletImage || WALLET_ICON_BY_ID[walletId] || DEFAULT_WALLET_ICON_ASSET;
-  }, [wallet?.id, walletImage]);
+    return WALLET_ICON_BY_ID[walletId] || wallet?.icon || DEFAULT_WALLET_ICON_ASSET;
+  }, [wallet?.icon, wallet?.id]);
 
   const mintedPreviewIds = useMemo(() => mintedTokenIds.slice(0, NFT_PREVIEW_LIMIT), [mintedTokenIds]);
   const mintedRemainderCount = Math.max(0, mintedTokenIds.length - mintedPreviewIds.length);
-
-  const connectModalWallets = useMemo(() => {
-    return CONNECT_MODAL_WALLET_IDS.map((walletId) => createWallet(walletId));
-  }, []);
 
   const handleConnectWallet = async (option: WalletOption) => {
     try {
       setConnectingWalletId(option.id);
       onStatus?.({ type: "pending", message: `Connecting ${option.label}...` });
-      await connect(async () => {
-        const selectedWallet = createWallet(option.id);
-        await selectedWallet.connect({
-          client: THIRDWEB_CLIENT,
-          chain: TARGET_CHAIN,
-        });
-        return selectedWallet;
-      });
+      await connectWallet(option.id);
       setOpen(false);
-      onStatus?.({ type: "success", message: "Wallet connected." });
-    } catch (error: any) {
-      if (error?.name === "AbortError") return;
-      const reason = typeof error?.message === "string" && error.message.toLowerCase().includes("user rejected")
-        ? "Wallet connection canceled."
-        : "Failed to connect wallet.";
-      onStatus?.({ type: "error", message: reason });
-    } finally {
-      setConnectingWalletId(null);
-    }
-  };
-
-  const handleOpenMoreWallets = async () => {
-    try {
-      setConnectingWalletId("all-wallets");
-      onStatus?.({ type: "pending", message: "Opening wallet list..." });
-      setOpen(false);
-      await connectWithModal({
-        client: THIRDWEB_CLIENT,
-        chain: TARGET_CHAIN,
-        wallets: connectModalWallets,
-      });
       onStatus?.({ type: "success", message: "Wallet connected." });
     } catch (error: any) {
       if (error?.name === "AbortError") return;
@@ -386,7 +311,7 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
 
   const handleDisconnect = () => {
     if (!wallet) return;
-    disconnect(wallet);
+    disconnectWallet();
     setOpen(false);
     onStatus?.({ type: "idle", message: "Wallet disconnected." });
   };
@@ -419,10 +344,10 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
           className={`wallet-connect-btn ${open ? "is-open" : ""}`}
           type="button"
           onClick={() => setOpen((v) => !v)}
-          disabled={isConnecting || isConnectingWithModal}
+          disabled={isConnecting}
         >
           <WalletIcon className="wallet-connect-btn-icon" aria-hidden="true" />
-          <span>{isConnecting || isConnectingWithModal ? "CONNECTING..." : "CONNECT WALLET"}</span>
+          <span>{isConnecting ? "CONNECTING..." : "CONNECT WALLET"}</span>
         </button>
 
         {open ? (
@@ -435,7 +360,7 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
                 <div className="wallet-connect-list">
                   {CONNECT_WALLET_OPTIONS.map((option) => {
                     const isOptionConnecting = isConnecting && connectingWalletId === option.id;
-                    const optionIcon = connectWalletIconById[option.id] || option.fallbackIcon;
+                    const optionIcon = option.fallbackIcon;
                     return (
                       <button
                         key={option.id}
@@ -456,29 +381,6 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
                       </button>
                     );
                   })}
-                  <button
-                    type="button"
-                    className="wallet-connect-item wallet-connect-item-more"
-                    onClick={handleOpenMoreWallets}
-                    disabled={isConnecting || isConnectingWithModal}
-                  >
-                    <span className="wallet-connect-item-icon">
-                      <img
-                        src={DEFAULT_WALLET_ICON_ASSET}
-                        alt=""
-                        aria-hidden
-                        className="wallet-connect-item-icon-img wallet-connect-item-icon-img-more"
-                      />
-                    </span>
-                    <span className="wallet-connect-item-meta">
-                      <span className="wallet-connect-item-label-row">
-                        <span className="wallet-connect-item-label">
-                          {isConnectingWithModal && connectingWalletId === "all-wallets" ? "CONNECTING..." : "All Wallets"}
-                        </span>
-                        <span className="wallet-connect-item-count">500+</span>
-                      </span>
-                    </span>
-                  </button>
                 </div>
               </section>
 
@@ -493,7 +395,7 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
                   <p className="wallet-connect-panel-copy">
                     {isConnecting ? "Approve the request in your wallet." : "Connect a wallet to get started."}
                   </p>
-                  <p className="wallet-connect-panel-hint">New to wallets?</p>
+                  <p className="wallet-connect-panel-hint">MetaMask, Phantom, and Rabby supported.</p>
                 </div>
               </section>
             </div>
@@ -502,14 +404,14 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
               <img src={MEGAETH_LOGO_ASSET} alt="Megahop logo" className="wallet-pop-brand-logo" />
               <div className="wallet-connect-footer-actions">
                 <a
-                  href="https://thirdweb.com/"
+                  href="https://mega.etherscan.io/"
                   target="_blank"
                   rel="noreferrer"
                   className="wallet-powered-by"
-                  aria-label="Powered by thirdweb"
+                  aria-label="Open MegaETH Explorer"
                 >
-                  <span className="wallet-powered-by-text">Powered by</span>
-                  <img src="/icons/thirdweb-wordmark.svg" alt="thirdweb" className="wallet-powered-by-logo" />
+                  <span className="wallet-powered-by-text">Explorer</span>
+                  <img src="/megaeth-assets/scan.png" alt="MegaETH Explorer" className="wallet-powered-by-logo" />
                 </a>
                 <button type="button" className="wallet-disconnect-btn" onClick={() => setOpen(false)}>
                   Close
@@ -528,11 +430,11 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
         <span className="wallet-trigger-avatar">
           <img src={walletIconSrc} alt="" aria-hidden className="wallet-trigger-avatar-img" />
         </span>
-        <span className="wallet-trigger-info">
-          <span className="wallet-trigger-address">{shortAddress}</span>
-          <span className="wallet-trigger-balance">{balanceText}</span>
-        </span>
-      </button>
+          <span className="wallet-trigger-info">
+            <span className="wallet-trigger-address">{shortAddress}</span>
+            <span className="wallet-trigger-balance">{nativeBalanceText}</span>
+          </span>
+        </button>
 
       {open ? (
         <div className="wallet-popover wallet-profile-popover">
@@ -563,7 +465,7 @@ export default function WalletMenu({ onStatus }: WalletMenuProps) {
                       <span className="wallet-asset-name">ETH</span>
                       <span className="wallet-asset-tag">GAS TOKEN</span>
                     </div>
-                    <div className="wallet-asset-value">{balanceText}</div>
+                    <div className="wallet-asset-value">{nativeBalanceText}</div>
                   </div>
                 </div>
 

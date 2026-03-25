@@ -1,6 +1,4 @@
 import { ethers } from "ethers";
-import { ethers5Adapter } from "thirdweb/adapters/ethers5";
-import { THIRDWEB_CLIENT, TARGET_CHAIN } from "./thirdweb";
 
 export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "";
@@ -9,6 +7,7 @@ export const RPC_FALLBACK_URLS = (process.env.NEXT_PUBLIC_RPC_FALLBACK_URLS || "
   .map((item) => item.trim())
   .filter(Boolean);
 export const TARGET_CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 0);
+export const TARGET_CHAIN_NAME = process.env.NEXT_PUBLIC_NETWORK_NAME || "MegaETH";
 const RPC_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_RPC_TIMEOUT_MS || 10000);
 const READ_RETRY_ATTEMPTS = Math.max(1, Number(process.env.NEXT_PUBLIC_RPC_READ_RETRY_ATTEMPTS || 2));
 const READ_RETRY_DELAY_MS = Math.max(0, Number(process.env.NEXT_PUBLIC_RPC_READ_RETRY_DELAY_MS || 250));
@@ -391,23 +390,20 @@ export function getReadContract() {
   return new ethers.Contract(CONTRACT_ADDRESS, MINTNFT_ABI, provider);
 }
 
-export async function getWriteContract(account?: any, chain?: any) {
+export async function getWriteContract(provider?: any) {
   if (!CONTRACT_ADDRESS) {
     throw new Error("Missing NEXT_PUBLIC_CONTRACT_ADDRESS");
   }
-  const signer = await getWriteSigner(account, chain);
+  const signer = await getWriteSigner(provider);
   return new ethers.Contract(CONTRACT_ADDRESS, MINTNFT_ABI, signer);
 }
 
-export async function getWriteSigner(account?: any, chain?: any) {
-  if (!account) {
+export async function getWriteSigner(provider?: any) {
+  if (!provider) {
     throw new Error("Wallet not connected");
   }
-  return ethers5Adapter.signer.toEthers({
-    client: THIRDWEB_CLIENT,
-    account,
-    chain: chain ?? TARGET_CHAIN,
-  });
+  const web3Provider = new ethers.providers.Web3Provider(provider, "any");
+  return web3Provider.getSigner();
 }
 
 export async function withReadRetry<T>(task: () => Promise<T>): Promise<T> {
