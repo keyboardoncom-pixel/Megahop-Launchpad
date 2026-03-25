@@ -45,15 +45,7 @@ const ETH_ICON_ASSET = "/megaeth-assets/eth.svg";
 const FOOTER_EARTH_ASSET = "/megaeth-assets/earth.webm";
 const STATS_REFRESH_MS = Math.max(Number(process.env.NEXT_PUBLIC_STATS_REFRESH_MS || 300_000), 60_000);
 const LAUNCHPAD_UI_REFRESH_MS = Math.max(Number(process.env.NEXT_PUBLIC_LAUNCHPAD_UI_REFRESH_MS || 900_000), 120_000);
-const ETH_PRICE_REFRESH_MS = Math.max(Number(process.env.NEXT_PUBLIC_ETH_PRICE_REFRESH_MS || 1_800_000), 300_000);
 const VISIBILITY_REFRESH_DEBOUNCE_MS = 15_000;
-const ETH_PRICE_CACHE_KEY = "megahop-launchpad.eth-usd-cache";
-const USD_FORMATTER = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
 
 const LAUNCHPAD_UI_DEFAULTS: LaunchpadUiDefaults = {
   collectionName: DEFAULT_COLLECTION_NAME,
@@ -239,52 +231,6 @@ function MintGlyph({ name, className = "" }: { name: MintGlyphName; className?: 
   return <Icon className={`mint-ui-glyph ${className}`.trim()} aria-hidden="true" />;
 }
 
-const fetchEthUsdRate = async (): Promise<number | null> => {
-  if (typeof window !== "undefined") {
-    try {
-      const cachedRaw = window.localStorage.getItem(ETH_PRICE_CACHE_KEY);
-      if (cachedRaw) {
-        const cached = JSON.parse(cachedRaw) as { usd?: number; updatedAt?: number };
-        const usd = Number(cached?.usd);
-        const updatedAt = Number(cached?.updatedAt);
-        if (Number.isFinite(usd) && usd > 0 && Number.isFinite(updatedAt) && Date.now() - updatedAt < ETH_PRICE_REFRESH_MS) {
-          return usd;
-        }
-      }
-    } catch {
-      // ignore malformed local cache
-    }
-  }
-
-  try {
-    const response = await fetch("/api/eth-price", { cache: "no-store" });
-    if (!response.ok) {
-      return null;
-    }
-    const payload = (await response.json().catch(() => null)) as { ok?: boolean; usd?: number } | null;
-    const value = Number(payload?.usd);
-    if (payload?.ok && Number.isFinite(value) && value > 0) {
-      if (typeof window !== "undefined") {
-        try {
-          window.localStorage.setItem(
-            ETH_PRICE_CACHE_KEY,
-            JSON.stringify({
-              usd: value,
-              updatedAt: Date.now(),
-            })
-          );
-        } catch {
-          // ignore storage failures
-        }
-      }
-      return value;
-    }
-  } catch {
-    // ignore and leave USD as unavailable
-  }
-  return null;
-};
-
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const account = useWalletAccount();
@@ -307,14 +253,11 @@ export default function Home() {
   const [clockMs, setClockMs] = useState(() => Date.now());
   const [allowlistEligible, setAllowlistEligible] = useState<boolean | null>(null);
   const [notRevealedURI, setNotRevealedURI] = useState("");
-  const [ethUsdRate, setEthUsdRate] = useState<number | null>(null);
-  const [ethUsdChecked, setEthUsdChecked] = useState(false);
   const [uiSettings, setUiSettings] = useState(() =>
     buildDefaultLaunchpadUiSettings(LAUNCHPAD_UI_DEFAULTS)
   );
   const lastRefreshAllAtRef = useRef(0);
   const lastUiSyncAtRef = useRef(0);
-  const lastPriceSyncAtRef = useRef(0);
   const lastVisibilityRefreshAtRef = useRef(0);
 
   const isSupportedChain = !chain || SUPPORTED_CHAIN_IDS.includes(chain.id);
@@ -479,29 +422,6 @@ export default function Home() {
   }, [mounted]);
 
   useEffect(() => {
-    if (!mounted || NATIVE_SYMBOL.toUpperCase() !== "ETH") return;
-    let disposed = false;
-    const syncRate = async () => {
-      const rate = await fetchEthUsdRate();
-      if (disposed) return;
-      setEthUsdChecked(true);
-      if (!disposed && rate) {
-        setEthUsdRate(rate);
-      }
-      lastPriceSyncAtRef.current = Date.now();
-    };
-    void syncRate();
-    const timer = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      void syncRate();
-    }, ETH_PRICE_REFRESH_MS);
-    return () => {
-      disposed = true;
-      window.clearInterval(timer);
-    };
-  }, [mounted]);
-
-  useEffect(() => {
     if (!mounted || typeof window === "undefined") return;
 
     const syncUiSettingsFromServer = async () => {
@@ -540,17 +460,6 @@ export default function Home() {
       }
       if (now - lastUiSyncAtRef.current >= 60_000) {
         void syncUiSettingsFromServer();
-      }
-      if (NATIVE_SYMBOL.toUpperCase() === "ETH" && now - lastPriceSyncAtRef.current >= 300_000) {
-        void fetchEthUsdRate()
-          .then((rate) => {
-            setEthUsdChecked(true);
-            if (rate) {
-              setEthUsdRate(rate);
-            }
-            lastPriceSyncAtRef.current = Date.now();
-          })
-          .catch(() => {});
       }
     };
 
@@ -769,12 +678,6 @@ export default function Home() {
   const mintCost = mintPricePerNft * quantity;
   const feeCost = feePerNft * quantity;
   const totalCost = mintCost + feeCost;
-  const hasEthUsdRate = ethUsdRate !== null && Number.isFinite(ethUsdRate) && ethUsdRate > 0;
-  const activePhaseUsdPrice = activePhase && hasEthUsdRate ? mintPricePerNft * ethUsdRate : null;
-  const activePhaseUsdText =
-    activePhaseUsdPrice !== null && Number.isFinite(activePhaseUsdPrice)
-      ? USD_FORMATTER.format(activePhaseUsdPrice)
-      : "";
 
   const websiteUrl = useMemo(
     () => normalizeExternalUrl(uiSettings.collectionWebsite),
@@ -1130,11 +1033,6 @@ export default function Home() {
                       {activePhase ? `${activePhase.priceEth} ${NATIVE_SYMBOL}` : "-"}
                     </p>
                   </div>
-                  {activePhase ? (
-                    <p className={`mint-ui-price-fiat ${activePhaseUsdText ? "" : "is-muted"}`}>
-                      {activePhaseUsdText || (ethUsdChecked ? "USD unavailable" : "USD syncing...")}
-                    </p>
-                  ) : null}
                 </div>
               </div>
 
