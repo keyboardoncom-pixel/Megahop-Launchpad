@@ -92,9 +92,6 @@ const getWalletIdFromConnector = (connector: ConnectorLike | null | undefined): 
   if (rdns === "io.rabby" || id === "rabby" || name.includes("rabby")) {
     return "io.rabby";
   }
-  if (rdns === "com.coinbase.wallet" || id === "coinbasewallet" || id === "coinbase" || name.includes("coinbase")) {
-    return "com.coinbase.wallet";
-  }
   if (rdns === "me.rainbow" || id === "rainbow" || name.includes("rainbow")) {
     return "me.rainbow";
   }

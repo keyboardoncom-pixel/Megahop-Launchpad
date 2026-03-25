@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  coinbaseWallet,
   metaMaskWallet,
   okxWallet,
   phantomWallet,
@@ -14,7 +13,6 @@ export type BrowserWalletId =
   | "io.metamask"
   | "app.phantom"
   | "io.rabby"
-  | "com.coinbase.wallet"
   | "me.rainbow"
   | "io.zerion.wallet"
   | "com.okx.wallet";
@@ -51,13 +49,6 @@ const baseWallets = [
     fallbackLabel: "Rabby Wallet",
     fallbackSubtitle: "Browser Wallet",
     fallbackIcon: "/wallets/rabby.png",
-  },
-  {
-    id: "com.coinbase.wallet" as const,
-    createWallet: coinbaseWallet,
-    fallbackLabel: "Coinbase Wallet",
-    fallbackSubtitle: "Browser & Mobile",
-    fallbackIcon: "/wallets/coinbase.svg",
   },
   {
     id: "me.rainbow" as const,

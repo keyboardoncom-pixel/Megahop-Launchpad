@@ -20,7 +20,6 @@ type WalletOption = {
     | "io.metamask"
     | "app.phantom"
     | "io.rabby"
-    | "com.coinbase.wallet"
     | "me.rainbow"
     | "io.zerion.wallet"
     | "com.okx.wallet";
